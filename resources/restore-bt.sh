@@ -116,6 +116,10 @@ restore_bt_runtime() {
     fi
 
     if [ "$BLUETOOTH_POWER_ON" = "1" ]; then
+        # OverlayFS에서 유실된 커널 모듈 자동 로드 설정 복구
+        mkdir -p /etc/modules-load.d
+        echo "btnxpuart" > /etc/modules-load.d/btnxpuart.conf
+        
         modprobe btnxpuart 2>/dev/null || true
         systemctl stop rekoit-bt-agent.service 2>/dev/null || true
         systemctl disable rekoit-bt-agent.service 2>/dev/null || true

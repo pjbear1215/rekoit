@@ -173,8 +173,27 @@ else
     echo "[8/10] SKIP: libepaper backup/runtime mount disabled"
 fi
 
-# 9. SWUpdate post-update hook (펌웨어 업데이트 후 한글 자동 복구)
-echo "[9/10] Installing SWUpdate post-update hook..."
+# 9. REKOIT 복구 서비스 설치 (부팅 시 자동 복구 보장)
+echo "[9/10] Installing REKOIT restore service..."
+if [ -f "$BASEDIR/rekoit-restore.service" ]; then
+    cp "$BASEDIR/rekoit-restore.service" /etc/systemd/system/rekoit-restore.service
+    chmod +x "$BASEDIR/restore.sh" "$BASEDIR/post-update.sh"
+    [ -f "$BASEDIR/restore-hangul.sh" ] && chmod +x "$BASEDIR/restore-hangul.sh"
+    [ -f "$BASEDIR/post-update-hangul.sh" ] && chmod +x "$BASEDIR/post-update-hangul.sh"
+    [ -f "$BASEDIR/restore-bt.sh" ] && chmod +x "$BASEDIR/restore-bt.sh"
+    [ -f "$BASEDIR/post-update-bt.sh" ] && chmod +x "$BASEDIR/post-update-bt.sh"
+    [ -f "$BASEDIR/bt-wake-reconnect.sh" ] && chmod +x "$BASEDIR/bt-wake-reconnect.sh"
+    
+    systemctl daemon-reload
+    systemctl enable rekoit-restore.service 2>/dev/null || true
+    echo "  OK: rekoit-restore.service installed and enabled"
+else
+    echo "  ERROR: rekoit-restore.service not found in $BASEDIR"
+    exit 1
+fi
+
+# 10. SWUpdate post-update hook (펌웨어 업데이트 후 한글 자동 복구)
+echo "[10/11] Installing SWUpdate post-update hook..."
 POST_UPDATE_SCRIPTS="post-update.sh"
 if [ "$INSTALL_HANGUL" = "1" ]; then
     POST_UPDATE_SCRIPTS="$POST_UPDATE_SCRIPTS post-update-hangul.sh"
@@ -192,6 +211,7 @@ done
 echo "  OK: post-update helpers ready"
 
 # REKOIT factory guard 설치 (rootfs에 직접)
+# ... (rest of the script)
 if [ "$INSTALL_BT" = "1" ]; then
 echo "  Installing REKOIT safety guard..."
 mkdir -p /opt/rekoit
@@ -287,8 +307,8 @@ SWUPDATE_ARGS+=" -p /home/root/rekoit/post-update.sh"
 CONFD_EOF
 echo "  OK: swupdate conf.d registered"
 
-# 10. rootfs 영구 보존 (/etc는 overlayfs + tmpfs — 재부팅 시 유실)
-echo "[10/10] Writing persistent files to rootfs..."
+# 11. rootfs 영구 보존 (/etc는 overlayfs + tmpfs — 재부팅 시 유실)
+echo "[11/11] Writing persistent files to rootfs..."
 CURRENT_ROOT=$(mount | grep ' / ' | head -n1 | awk '{print $1}')
 ROOTFS_DEV=""
 case "$CURRENT_ROOT" in
@@ -359,8 +379,9 @@ if [ -n "$ROOTFS_DEV" ] && [ "$ROOTFS_DEV" != "$CURRENT_ROOT" ]; then
             cp /etc/swupdate/conf.d/99-rekoit-postupdate /mnt/rootfs/etc/swupdate/conf.d/ 2>/dev/null || true
 
             # REKOIT 복구 서비스 (부팅 시 안전망)
-            if [ -f /etc/systemd/system/rekoit-restore.service ]; then
-                cp /etc/systemd/system/rekoit-restore.service /mnt/rootfs/etc/systemd/system/
+            if [ -f "$BASEDIR/rekoit-restore.service" ]; then
+                mkdir -p /mnt/rootfs/etc/systemd/system/multi-user.target.wants
+                cp "$BASEDIR/rekoit-restore.service" /mnt/rootfs/etc/systemd/system/rekoit-restore.service
                 ln -sf /etc/systemd/system/rekoit-restore.service /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-restore.service
             fi
 

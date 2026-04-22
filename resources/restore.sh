@@ -4,12 +4,20 @@
 
 set -e
 
+# 이미 복구되어 데몬이 작동 중이라면 즉시 종료 (로그인 시 부하 최소화)
+if systemctl is-active hangul-daemon.service >/dev/null 2>&1; then
+    exit 0
+fi
+
+LOG="/home/root/rekoit/restore.log"
+echo "[$(date)] restore.sh 시작 (필요에 의한 실행)" >> "$LOG"
+
 mount -o remount,rw / 2>/dev/null || true
 
 BASEDIR="/home/root/rekoit"
 STATE_FILE="$BASEDIR/install-state.conf"
 FONT_SRC="$BASEDIR/fonts/NotoSansCJKkr-Regular.otf"
-FONT_DST="/usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf"
+FONT_DST="/home/root/.local/share/fonts/rekoit/NotoSansCJKkr-Regular.otf"
 SERVICE_SRC="$BASEDIR/hangul-daemon.service"
 LIBEPAPER="/usr/lib/plugins/platforms/libepaper.so"
 LIBEPAPER_TMPFS="/dev/shm/hangul-libepaper.so"
@@ -94,8 +102,16 @@ if [ "$INSTALL_BT" = "1" ]; then
     restore_bt_runtime
 fi
 
+# 펌웨어 업데이트 상황일 경우 (현재 서비스 링크 등이 유실되었을 수 있으므로) 필요한 패치 재적용
+# /usr/lib/systemd/system/rekoit-restore.service는 이미 영구적이므로 여기서 다시 복사할 필요 없음
+
 if [ "$CHANGED" -eq 1 ]; then
     systemctl daemon-reload
 fi
+
+# 모든 복구 작업 완료 후 다시 읽기 전용으로 원복 (시스템 안정성)
+mount -o remount,ro / 2>/dev/null || true
+
+echo "[$(date)] restore.sh 완료 (changed=$CHANGED)" >> "$LOG"
 
 exit 0

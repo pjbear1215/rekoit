@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.1] - 2026-04-22
+
+### 🛠️ Improvements & Bug Fixes
+- **Enhanced Persistence on OverlayFS:** Solved the issue where `/etc` changes were lost after reboot on devices with volatile partitions (e.g., reMarkable Paper Pro) by installing services directly into the persistent `/usr/lib/systemd/system`.
+- **Improved Boot Reliability:** Added explicit `/home` mount dependencies to the restore service, ensuring recovery scripts are fully accessible before execution.
+- **Bluetooth Recovery Fix:** Implemented automatic re-recreation of the Bluetooth kernel module configuration (`btnxpuart.conf`) during restore, ensuring correct UI status detection after reboot.
+- **Optimized Recovery Cycle:** Streamlined the root partition remounting logic to minimize write operations and system impact during the boot process.
+- **A/B Partition Synchronization:** Improved the firmware update safety by injecting recovery services directly into the inactive rootfs during installation.
+- **Path Consistency:** Unified Hangul font paths across all system components (installation, restoration, and verification).
+
 ## [0.9.0] - 2026-04-21
 
 ### 🚀 Introducing REKOIT
