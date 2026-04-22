@@ -93,17 +93,20 @@ reconnect_paired_bluetooth_devices() {
 }
 
 restore_bt_runtime() {
+    # 0.9.1 호환 핵심 패치: Privacy = device 모드로 강제 고정
     if grep -q '^ConditionPathIsDirectory=/sys/class/bluetooth' /usr/lib/systemd/system/bluetooth.service 2>/dev/null; then
+        mount -o remount,rw / 2>/dev/null || true
         sed -i 's|^ConditionPathIsDirectory=/sys/class/bluetooth|#ConditionPathIsDirectory=/sys/class/bluetooth|' /usr/lib/systemd/system/bluetooth.service 2>/dev/null || true
+        mount -o remount,ro / 2>/dev/null || true
         CHANGED=1
     fi
 
     if [ -f /etc/bluetooth/main.conf ]; then
         if grep -q '^#\?Privacy' /etc/bluetooth/main.conf 2>/dev/null; then
-            sed -i 's/^#\?Privacy.*/Privacy = off/' /etc/bluetooth/main.conf 2>/dev/null || true
+            sed -i 's/^#\?Privacy.*/Privacy = device/' /etc/bluetooth/main.conf 2>/dev/null || true
             CHANGED=1
-        elif ! grep -q '^Privacy = off$' /etc/bluetooth/main.conf 2>/dev/null; then
-            sed -i '/^\[General\]/a Privacy = off' /etc/bluetooth/main.conf
+        elif ! grep -q '^Privacy = device$' /etc/bluetooth/main.conf 2>/dev/null; then
+            sed -i '/^\[General\]/a Privacy = device' /etc/bluetooth/main.conf
             CHANGED=1
         fi
         if grep -q '^#\?FastConnectable' /etc/bluetooth/main.conf 2>/dev/null; then
@@ -116,42 +119,43 @@ restore_bt_runtime() {
     fi
 
     if [ "$BLUETOOTH_POWER_ON" = "1" ]; then
-        # OverlayFS에서 유실된 커널 모듈 자동 로드 설정 복구
         mkdir -p /etc/modules-load.d
         echo "btnxpuart" > /etc/modules-load.d/btnxpuart.conf
-        
         modprobe btnxpuart 2>/dev/null || true
-        systemctl stop rekoit-bt-agent.service 2>/dev/null || true
-        systemctl disable rekoit-bt-agent.service 2>/dev/null || true
-        rm -f /etc/systemd/system/rekoit-bt-agent.service
-        rm -f /etc/systemd/system/multi-user.target.wants/rekoit-bt-agent.service
+
         if [ -f "$BASEDIR/rekoit-bt-wake-reconnect.service" ] && [ ! -f /etc/systemd/system/rekoit-bt-wake-reconnect.service ]; then
+            mount -o remount,rw / 2>/dev/null || true
             cp "$BASEDIR/rekoit-bt-wake-reconnect.service" /etc/systemd/system/rekoit-bt-wake-reconnect.service
             ln -sf /etc/systemd/system/rekoit-bt-wake-reconnect.service /etc/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service
+            mount -o remount,ro / 2>/dev/null || true
             CHANGED=1
         fi
+
         systemctl daemon-reload 2>/dev/null || true
-        systemctl reset-failed bluetooth.service 2>/dev/null || true
-        systemctl start bluetooth.service 2>/dev/null || true
+        # 0.9.1 방식: 블루투스 서비스 강제 재시작 (RPA 갱신용)
+        systemctl restart bluetooth.service 2>/dev/null || true
         systemctl restart rekoit-bt-wake-reconnect.service 2>/dev/null || true
-        for i in 1 2 3 4 5 6; do
-            ACTIVE=$(systemctl is-active bluetooth.service 2>/dev/null || true)
-            if [ "$ACTIVE" = "active" ]; then
-                bluetoothctl power on 2>/dev/null || true
+
+        # 비동기 전원 관리 및 연결 (0.9.1의 핵심 딜레이 루틴)
+        (
+            sleep 2
+            POWERED="no"
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+                if systemctl is-active bluetooth.service >/dev/null 2>&1; then
+                    bluetoothctl power on >/dev/null 2>&1 || true
+                    sleep 1
+                    if bluetoothctl show 2>/dev/null | grep -q "Powered: yes"; then
+                        POWERED="yes"
+                        break
+                    fi
+                fi
                 sleep 1
-                POWERED=$(bluetoothctl show 2>/dev/null | grep "Powered:" | awk '{print $2}')
-                [ "$POWERED" = "yes" ] && break
-            fi
-            sleep 1
-        done
-        if [ "$POWERED" = "yes" ]; then
-            reconnect_paired_bluetooth_devices || true
-            (
-                sleep 6
-                bluetoothctl power on 2>/dev/null || true
+            done
+
+            if [ "$POWERED" = "yes" ]; then
                 reconnect_paired_bluetooth_devices || true
-            ) >/dev/null 2>&1 &
-        fi
+            fi
+        ) >/dev/null 2>&1 &
     else
         systemctl stop rekoit-bt-wake-reconnect.service 2>/dev/null || true
     fi

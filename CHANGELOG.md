@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.2] - 2026-04-22
+
+### 🛠️ Stabilization & Connectivity Fixes
+- **Refined Bluetooth Recovery**: Fixed the race condition with system UI (xochitl) by restoring proper service ordering and implementing a 10-second persistent power-on loop.
+- **Async Recovery Model**: Optimized `restore.sh` to handle heavy tasks in the background, preventing boot hangs while ensuring all components are eventually restored.
+- **Enhanced UI Persistence**: Fixed a bug where Bluetooth status was incorrectly detected in the dashboard after reboot on OverlayFS devices.
+- **Improved Removal Path**: Strengthened the uninstallation logic to thoroughly clean up persistent services and symlinks from all system partitions.
+- **Updated Completion Guidance**: Modernized the installation success page with real-time Bluetooth device lists and accurate hardware keyboard shortcuts (Shift+Space / Right Alt).
+
 ## [0.9.1] - 2026-04-22
 
 ### 🛠️ Improvements & Bug Fixes

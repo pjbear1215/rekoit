@@ -34,21 +34,66 @@ export default function CompletePage() {
   const { state, setState } = useSetup();
   const [results, setResults] = useState<VerifyResult[]>([]);
   const [verifying, setVerifying] = useState(true);
-  const [btRemoving, setBtRemoving] = useState(false);
-  const [btRemoveResult, setBtRemoveResult] = useState<string | null>(null);
+  const [installedState, setInstalledState] = useState({
+    hangul: state.installHangul,
+    bt: state.installBtKeyboard,
+  });
+  
+  const [btDevices, setBtDevices] = useState<Array<{ address: string; connected: boolean; name: string }>>([]);
+  const [btLoading, setBtLoading] = useState(false);
+  const [btRemovingAddr, setBtRemovingAddr] = useState<string | null>(null);
+  
   const [fontUploading, setFontUploading] = useState(false);
   const [fontResult, setFontResult] = useState<string | null>(null);
   const fontInputRef = useRef<HTMLInputElement>(null);
 
   const placeholderChecks = [
-    ...(state.installHangul ? ["한글 폰트", "한글 입력 데몬"] : []),
-    ...(state.installBtKeyboard ? ["블루투스"] : []),
+    ...(installedState.hangul ? ["한글 폰트", "한글 입력 데몬"] : []),
+    ...(installedState.bt ? ["블루투스"] : []),
   ];
+
+  const loadBtDevices = useCallback(async () => {
+    if (!state.ip || !state.password) return;
+    setBtLoading(true);
+    try {
+      const res = await fetch("/api/bluetooth/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: state.ip, password: state.password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBtDevices(data.devices || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setBtLoading(false);
+    }
+  }, [state.ip, state.password]);
 
   useEffect(() => {
     if (!allowed) return;
     const verify = async () => {
       try {
+        // 1. 기기 가용성 재확인 (상태 동기화)
+        const availabilityRes = await fetch("/api/manage/availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ip: state.ip, password: state.password }),
+        });
+        
+        let isBtInstalled = state.installBtKeyboard;
+        if (availabilityRes.ok) {
+          const availData = await availabilityRes.json();
+          setInstalledState({
+            hangul: availData.hangulInstalled,
+            bt: availData.btInstalled,
+          });
+          isBtInstalled = availData.btInstalled;
+        }
+
+        // 2. 구성 요소 검증
         const res = await fetch("/api/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -61,6 +106,11 @@ export default function CompletePage() {
         });
         const data = await res.json();
         setResults(data.results);
+
+        // 3. 블루투스 기기 목록 로드
+        if (isBtInstalled) {
+          void loadBtDevices();
+        }
       } catch {
         setResults([{
           name: "검증 실패",
@@ -72,12 +122,12 @@ export default function CompletePage() {
       }
     };
     verify();
-  }, [allowed, state.installBtKeyboard, state.installHangul, state.ip, state.password]);
+  }, [allowed, state.installBtKeyboard, state.installHangul, state.ip, state.password, loadBtDevices]);
 
   const handleBtRemove = useCallback(
-    async (address: string) => {
-      setBtRemoving(true);
-      setBtRemoveResult(null);
+    async (address: string, name: string) => {
+      if (!confirm(`'${name}' 기기를 삭제하시겠습니까?`)) return;
+      setBtRemovingAddr(address);
       try {
         const res = await fetch("/api/bluetooth/remove", {
           method: "POST",
@@ -86,18 +136,17 @@ export default function CompletePage() {
         });
         const data = await res.json();
         if (data.success) {
-          setBtRemoveResult("연결 해제됨");
-          setState({ btDeviceAddress: undefined, btDeviceName: undefined });
+          setBtDevices(prev => prev.filter(d => d.address !== address));
         } else {
-          setBtRemoveResult(`실패: ${data.error ?? "알 수 없는 오류"}`);
+          alert(`삭제 실패: ${data.error ?? "알 수 없는 오류"}`);
         }
       } catch {
-        setBtRemoveResult("서버 오류");
+        alert("서버 오류가 발생했습니다.");
       } finally {
-        setBtRemoving(false);
+        setBtRemovingAddr(null);
       }
     },
-    [state.ip, state.password, setState],
+    [state.ip, state.password],
   );
 
   const handleFontUpload = useCallback(
@@ -159,7 +208,7 @@ export default function CompletePage() {
             className="mt-3 text-[17px] font-medium"
             style={{ color: "#666666" }}
           >
-            {getInstallSummary(state.installHangul, state.installBtKeyboard)}
+            {getInstallSummary(installedState.hangul, installedState.bt)}
           </p>
         </div>
 
@@ -194,11 +243,14 @@ export default function CompletePage() {
                   <p className="text-[20px] font-bold" style={{ color: "#1e8e3e" }}>
                     설치가 완료되었습니다
                   </p>
-                  <p className="text-[15px] mt-2 font-medium" style={{ color: "rgba(0,0,0,0.6)" }}>
-                    {state.installHangul
-                      ? "지구본 아이콘을 눌러 Korean을 선택하세요."
-                      : "블루투스 키보드 페어링을 진행하면 바로 사용할 수 있습니다."}
-                  </p>
+                  <div className="text-[15px] mt-2 font-medium space-y-1" style={{ color: "rgba(0,0,0,0.6)" }}>
+                    {installedState.hangul && (
+                      <p>Type Folio나 블루투스 키보드에서 <span className="font-bold text-black">Shift + Space</span> 또는 <span className="font-bold text-black">오른쪽 Alt</span> 키로 한/영을 전환하세요.</p>
+                    )}
+                    {installedState.bt && (
+                      <p>블루투스 키보드를 켜면 자동으로 연결을 시도합니다.</p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -228,19 +280,60 @@ export default function CompletePage() {
               {/* 빠른 관리 도구 */}
               {!verifying && (
                 <div className="space-y-8 border-t border-black/10 pt-8">
-                  {state.installHangul && (
+                  {installedState.hangul && (
                     <div className="space-y-4">
                       <SectionDivider label="키보드 레이아웃" />
                       <KeyboardSwapControl ip={state.ip} password={state.password} />
                     </div>
                   )}
 
-                  {state.installBtKeyboard && (
-                    <div className="space-y-4">
+                  {installedState.bt && (
+                    <div className="space-y-6">
                       <SectionDivider label="블루투스 제어" />
+                      
+                      {/* 등록된 기기 목록 */}
+                      <div className="space-y-3">
+                        <label className="block text-[13px] font-bold uppercase tracking-wider px-1">등록된 기기</label>
+                        <div className="space-y-2">
+                          {btLoading && btDevices.length === 0 ? (
+                            <div className="p-4 bg-black/[0.03] border border-black/5 text-center text-[13px] text-muted animate-pulse">
+                              기기 목록을 불러오는 중...
+                            </div>
+                          ) : btDevices.length > 0 ? (
+                            btDevices.map((device) => (
+                              <div
+                                key={device.address}
+                                className="flex items-center justify-between p-4 bg-black/[0.03] border border-black/5"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-2.5 h-2.5 rounded-full ${device.connected ? "bg-green-500" : "bg-black/20"}`} />
+                                  <div>
+                                    <p className="text-[15px] font-bold text-black">{device.name || "이름 없는 기기"}</p>
+                                    <p className="text-[12px] font-mono opacity-50">{device.address}</p>
+                                  </div>
+                                </div>
+                                <Button 
+                                  variant="secondary" 
+                                  size="sm" 
+                                  onClick={() => handleBtRemove(device.address, device.name)}
+                                  loading={btRemovingAddr === device.address}
+                                  className="font-bold border-none bg-black/5 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                >
+                                  삭제
+                                </Button>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-8 bg-black/[0.03] border border-black/5 text-center">
+                              <p className="text-[14px] text-muted font-medium">등록된 블루투스 기기가 없습니다.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between p-4 bg-black/[0.03] border border-black/5">
                         <div className="min-w-0">
-                          <p className="text-[16px] font-bold text-black">블루투스 키보드 재설정</p>
+                          <p className="text-[16px] font-bold text-black">새 키보드 연결</p>
                           <p className="text-[13px] font-medium opacity-50 mt-0.5">다른 키보드 연결이 필요할 때 사용하세요.</p>
                         </div>
                         <Button
@@ -256,7 +349,7 @@ export default function CompletePage() {
                     </div>
                   )}
 
-                  {state.installHangul && (
+                  {installedState.hangul && (
                     <div className="space-y-4">
                       <SectionDivider label="폰트 관리" />
                       <div className="flex items-center justify-between p-4 bg-black/[0.03] border border-black/5">

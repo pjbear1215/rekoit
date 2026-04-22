@@ -95,11 +95,14 @@ fi
 
 if [ "$INSTALL_HANGUL" = "1" ]; then
     . "$BASEDIR/restore-hangul.sh"
-    restore_hangul_runtime
+    restore_hangul_runtime || true
 fi
 if [ "$INSTALL_BT" = "1" ]; then
-    . "$BASEDIR/restore-bt.sh"
-    restore_bt_runtime
+    # 블루투스 복구는 시간이 걸리므로 백그라운드 실행
+    (
+        . "$BASEDIR/restore-bt.sh"
+        restore_bt_runtime || true
+    ) >/dev/null 2>&1 &
 fi
 
 # 펌웨어 업데이트 상황일 경우 (현재 서비스 링크 등이 유실되었을 수 있으므로) 필요한 패치 재적용

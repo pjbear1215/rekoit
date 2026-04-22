@@ -1,8 +1,7 @@
 [Unit]
 Description=Restore REKOIT runtime after firmware update
-DefaultDependencies=no
+After=home.mount local-fs.target
 RequiresMountsFor=/home
-After=home.mount
 Before=xochitl.service
 
 [Service]

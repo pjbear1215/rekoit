@@ -843,20 +843,6 @@ export async function GET(request: NextRequest): Promise<Response> {
         send("progress", { percent: 85, step: 5 });
 
         // 1. /usr/bin/rekoit-restore 생성 (스크립트 내장형으로 /home 의존성 제거)
-        const standaloneRestoreScript = `#!/bin/sh
-# rekoit-standalone-restore: /home 마운트 여부와 상관없이 실행되는 최후의 복구 수단
-mount -o remount,rw / 2>/dev/null || true
-BASEDIR="/home/root/rekoit"
-if [ -f "$BASEDIR/restore.sh" ]; then
-    # /home이 마운트되어 있다면 기존 restore.sh 실행
-    sh "$BASEDIR/restore.sh"
-else
-    # /home이 아직 마운트되지 않았을 경우를 대비한 최소한의 안전장치 (폰트 등)
-    mkdir -p /usr/share/fonts/ttf/noto
-    [ -f "$BASEDIR/fonts/NotoSansCJKkr-Regular.otf" ] && cp "$BASEDIR/fonts/NotoSansCJKkr-Regular.otf" /usr/share/fonts/ttf/noto/
-fi
-`;
-        
         // === Step 5: REKOIT 복구 서비스 영구 설치 (System Root 주입) ===
         send("step", { step: 5, name: "부팅 시 REKOIT 복구 서비스 설치", status: "running" });
         send("progress", { percent: 85, step: 5 });
@@ -870,7 +856,6 @@ fi
         await runSsh(ip, password, `chmod +x ${helperPaths.join(" ")}`);
 
         // 휘발성 /etc 대신 영구적인 /usr/lib/systemd/system에 서비스 등록
-        // 블루투스 도우미 서비스도 포함하여 영구 설치
         const persistentSvcCmd = `
           mount -o remount,rw / &&
           cp /home/root/rekoit/rekoit-restore.service /usr/lib/systemd/system/rekoit-restore.service &&
@@ -883,7 +868,6 @@ fi
           systemctl daemon-reload
         `;
         await runSsh(ip, password, persistentSvcCmd);
-        await runSsh(ip, password, persistentSvcCmd);
 
         send("log", { line: "OK: REKOIT 복구 서비스 -> /usr/lib/systemd/system (영구 설치)" });
         send("step", { step: 5, name: "부팅 시 REKOIT 복구 서비스 설치 완료", status: "complete" });
@@ -891,7 +875,7 @@ fi
         // === Step 6: 영속화 설정 마무리 ===
         send("step", { step: 6, name: "영속화 설정 마무리", status: "running" });
         
-        // 반대편 파티션의 루트 영역에도 동일하게 서비스 복제 (업데이트 대비)
+        // 반대편 파티션의 루트 영역에도 동일하게 서비스 및 설정 복제 (업데이트 대비)
         const inactivePersistenceCmd = `
           CURRENT_ROOT=$(mount | grep ' / ' | head -n1 | awk '{print $1}') && 
           ROOTFS_DEV="" && 
@@ -902,13 +886,21 @@ fi
             mkdir -p /mnt/rootfs/usr/lib/systemd/system/multi-user.target.wants &&
             cp /usr/lib/systemd/system/rekoit-restore.service /mnt/rootfs/usr/lib/systemd/system/rekoit-restore.service &&
             ln -sf /usr/lib/systemd/system/rekoit-restore.service /mnt/rootfs/usr/lib/systemd/system/multi-user.target.wants/rekoit-restore.service &&
+            if [ -f /usr/lib/systemd/system/rekoit-bt-wake-reconnect.service ]; then
+              cp /usr/lib/systemd/system/rekoit-bt-wake-reconnect.service /mnt/rootfs/usr/lib/systemd/system/rekoit-bt-wake-reconnect.service &&
+              ln -sf /usr/lib/systemd/system/rekoit-bt-wake-reconnect.service /mnt/rootfs/usr/lib/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service;
+            fi &&
+            if [ -f /etc/modules-load.d/btnxpuart.conf ]; then
+              mkdir -p /mnt/rootfs/etc/modules-load.d &&
+              cp /etc/modules-load.d/btnxpuart.conf /mnt/rootfs/etc/modules-load.d/btnxpuart.conf;
+            fi &&
             sync && umount /mnt/rootfs 2>/dev/null || true; 
           fi &&
           mount -o remount,ro / 2>/dev/null || true
         `;
         await runSsh(ip, password, inactivePersistenceCmd);
         
-        send("log", { line: "OK: 펌웨어 업데이트 대비 서비스 복제 및 설정 완료" });
+        send("log", { line: "OK: 펌웨어 업데이트 대비 서비스 및 설정 복제 완료" });
         send("step", { step: 6, name: "설치 완료", status: "complete" });
 
         send("progress", { percent: 100, step: 6 });
