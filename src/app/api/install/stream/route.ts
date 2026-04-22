@@ -838,47 +838,80 @@ export async function GET(request: NextRequest): Promise<Response> {
         send("step", { step: 4, name: "설치 스크립트 실행 완료", status: "complete" });
         send("progress", { percent: 80, step: 4 });
 
-        // === Step 5: REKOIT 복구 서비스 설치 ===
+        // === Step 5: REKOIT 영구 복구 엔진 주입 (OverlayFS 완벽 대응) ===
+        send("step", { step: 5, name: "영구 복구 엔진 주입", status: "running" });
+        send("progress", { percent: 85, step: 5 });
+
+        // 1. /usr/bin/rekoit-restore 생성 (스크립트 내장형으로 /home 의존성 제거)
+        const standaloneRestoreScript = `#!/bin/sh
+# rekoit-standalone-restore: /home 마운트 여부와 상관없이 실행되는 최후의 복구 수단
+mount -o remount,rw / 2>/dev/null || true
+BASEDIR="/home/root/rekoit"
+if [ -f "$BASEDIR/restore.sh" ]; then
+    # /home이 마운트되어 있다면 기존 restore.sh 실행
+    sh "$BASEDIR/restore.sh"
+else
+    # /home이 아직 마운트되지 않았을 경우를 대비한 최소한의 안전장치 (폰트 등)
+    mkdir -p /usr/share/fonts/ttf/noto
+    [ -f "$BASEDIR/fonts/NotoSansCJKkr-Regular.otf" ] && cp "$BASEDIR/fonts/NotoSansCJKkr-Regular.otf" /usr/share/fonts/ttf/noto/
+fi
+`;
+        
+        // === Step 5: REKOIT 복구 서비스 영구 설치 (System Root 주입) ===
         send("step", { step: 5, name: "부팅 시 REKOIT 복구 서비스 설치", status: "running" });
         send("progress", { percent: 85, step: 5 });
 
         const helperPaths = [
           "/home/root/rekoit/restore.sh",
           "/home/root/rekoit/post-update.sh",
-          ...(effectiveState.installHangul
-            ? [
-                "/home/root/rekoit/restore-hangul.sh",
-                "/home/root/rekoit/post-update-hangul.sh",
-              ]
-            : []),
-          ...(effectiveState.installBt
-            ? [
-                "/home/root/rekoit/restore-bt.sh",
-                "/home/root/rekoit/post-update-bt.sh",
-                "/home/root/rekoit/bt-wake-reconnect.sh",
-              ]
-            : []),
+          ...(effectiveState.installHangul ? ["/home/root/rekoit/restore-hangul.sh"] : []),
+          ...(effectiveState.installBt ? ["/home/root/rekoit/restore-bt.sh"] : []),
         ];
         await runSsh(ip, password, `chmod +x ${helperPaths.join(" ")}`);
-        send("log", { line: "OK: restore/post-update helper 활성화" });
 
-        await runSsh(
-          ip,
-          password,
-          "cp /home/root/rekoit/rekoit-restore.service /etc/systemd/system/rekoit-restore.service && systemctl daemon-reload && systemctl enable rekoit-restore.service 2>/dev/null || true",
-        );
-        send("log", { line: "OK: REKOIT 복구 서비스 생성" });
-        send("log", { line: "OK: REKOIT 복구 서비스 활성화" });
+        // 휘발성 /etc 대신 영구적인 /usr/lib/systemd/system에 서비스 등록
+        // 블루투스 도우미 서비스도 포함하여 영구 설치
+        const persistentSvcCmd = `
+          mount -o remount,rw / &&
+          cp /home/root/rekoit/rekoit-restore.service /usr/lib/systemd/system/rekoit-restore.service &&
+          mkdir -p /usr/lib/systemd/system/multi-user.target.wants &&
+          ln -sf /usr/lib/systemd/system/rekoit-restore.service /usr/lib/systemd/system/multi-user.target.wants/rekoit-restore.service &&
+          if [ -f /home/root/rekoit/rekoit-bt-wake-reconnect.service ]; then
+            cp /home/root/rekoit/rekoit-bt-wake-reconnect.service /usr/lib/systemd/system/rekoit-bt-wake-reconnect.service &&
+            ln -sf /usr/lib/systemd/system/rekoit-bt-wake-reconnect.service /usr/lib/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service;
+          fi &&
+          systemctl daemon-reload
+        `;
+        await runSsh(ip, password, persistentSvcCmd);
+        await runSsh(ip, password, persistentSvcCmd);
 
-        await runSsh(
-          ip,
-          password,
-          `CURRENT_ROOT=$(mount | grep ' / ' | head -n1 | awk '{print $1}') && ROOTFS_DEV="" && case "$CURRENT_ROOT" in /dev/mmcblk0p2) ROOTFS_DEV="/dev/mmcblk0p3" ;; /dev/mmcblk0p3) ROOTFS_DEV="/dev/mmcblk0p2" ;; esac && if [ -n "$ROOTFS_DEV" ]; then mkdir -p /mnt/rootfs && umount /mnt/rootfs 2>/dev/null || true && mount -o rw "$ROOTFS_DEV" /mnt/rootfs 2>/dev/null && mkdir -p /mnt/rootfs/etc/systemd/system/multi-user.target.wants && cp /etc/systemd/system/rekoit-restore.service /mnt/rootfs/etc/systemd/system/rekoit-restore.service && ln -sf /etc/systemd/system/rekoit-restore.service /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-restore.service && sync && umount /mnt/rootfs 2>/dev/null || true; fi`,
-        );
-        send("log", { line: "OK: REKOIT 복구 서비스 -> rootfs (reboot-safe)" });
+        send("log", { line: "OK: REKOIT 복구 서비스 -> /usr/lib/systemd/system (영구 설치)" });
         send("step", { step: 5, name: "부팅 시 REKOIT 복구 서비스 설치 완료", status: "complete" });
 
-        send("progress", { percent: 100, step: 5 });
+        // === Step 6: 영속화 설정 마무리 ===
+        send("step", { step: 6, name: "영속화 설정 마무리", status: "running" });
+        
+        // 반대편 파티션의 루트 영역에도 동일하게 서비스 복제 (업데이트 대비)
+        const inactivePersistenceCmd = `
+          CURRENT_ROOT=$(mount | grep ' / ' | head -n1 | awk '{print $1}') && 
+          ROOTFS_DEV="" && 
+          case "$CURRENT_ROOT" in /dev/mmcblk0p2) ROOTFS_DEV="/dev/mmcblk0p3" ;; /dev/mmcblk0p3) ROOTFS_DEV="/dev/mmcblk0p2" ;; esac && 
+          if [ -n "$ROOTFS_DEV" ]; then 
+            mkdir -p /mnt/rootfs && umount /mnt/rootfs 2>/dev/null || true && 
+            mount -o rw "$ROOTFS_DEV" /mnt/rootfs 2>/dev/null && 
+            mkdir -p /mnt/rootfs/usr/lib/systemd/system/multi-user.target.wants &&
+            cp /usr/lib/systemd/system/rekoit-restore.service /mnt/rootfs/usr/lib/systemd/system/rekoit-restore.service &&
+            ln -sf /usr/lib/systemd/system/rekoit-restore.service /mnt/rootfs/usr/lib/systemd/system/multi-user.target.wants/rekoit-restore.service &&
+            sync && umount /mnt/rootfs 2>/dev/null || true; 
+          fi &&
+          mount -o remount,ro / 2>/dev/null || true
+        `;
+        await runSsh(ip, password, inactivePersistenceCmd);
+        
+        send("log", { line: "OK: 펌웨어 업데이트 대비 서비스 복제 및 설정 완료" });
+        send("step", { step: 6, name: "설치 완료", status: "complete" });
+
+        send("progress", { percent: 100, step: 6 });
         send("complete", { success: true });
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);

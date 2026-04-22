@@ -165,13 +165,13 @@ find /var/lib/bluetooth -maxdepth 3 \\( -name info -o -name attributes \\) -prin
   }
 
   try {
-    results.xochitl_logs = await runSsh(
+    results.systemd_features = await runSsh(
       ip,
       password,
-      "journalctl -u xochitl --no-pager --since '30 minutes ago' -n 300 2>/dev/null | grep -i -E 'hangul|keyboard|input|libepaper|folio|event' || echo 'NO_MATCHES'",
+      "echo '=== loginctl ===' && loginctl --version 2>&1 || echo 'NOT_FOUND' && echo '=== systemd --user ===' && systemctl --user list-units 2>&1 || echo 'NOT_SUPPORTED'",
     );
   } catch {
-    results.xochitl_logs = "SSH_ERROR";
+    results.systemd_features = "SSH_ERROR";
   }
 
   return NextResponse.json({ results });
