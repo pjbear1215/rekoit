@@ -135,7 +135,7 @@ function extractBluetoothIrk(
           "-o", "UserKnownHostsFile=/dev/null",
           "-o", "ConnectTimeout=10",
           `root@${session.ip}`,
-          `cat /var/lib/bluetooth/*/${address}/info 2>/dev/null | grep -A1 '\\[IdentityResolvingKey\\]' | grep 'Key=' | cut -d= -f2 | head -n 1`,
+          `cat /var/lib/bluetooth/*/${address.toUpperCase()}/info 2>/dev/null | grep -A1 '\\[IdentityResolvingKey\\]' | grep 'Key=' | cut -d= -f2 | head -n 1`,
         ],
         { env },
       );

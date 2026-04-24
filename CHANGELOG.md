@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.3] - 2026-04-24
+
+### 🛠️ Critical Connectivity Fix
+- **Fixed IRK Extraction Bug**: Resolved an issue where Bluetooth Identity Resolving Keys (IRK) were not extracted during pairing due to a case-sensitivity mismatch in MAC address paths. This fix ensures reliable auto-reconnection for keyboards using rotating random addresses (RPA).
+
 ## [0.9.2] - 2026-04-22
 
 ### 🛠️ Stabilization & Connectivity Fixes
