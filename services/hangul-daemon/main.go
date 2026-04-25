@@ -1627,6 +1627,18 @@ func specialPassthroughRune(code uint16, shifted bool) (rune, bool) {
 	if code == KEY_6 && shifted {
 		return '^', true
 	}
+	if code == KEY_LEFTBRACE {
+		if shifted {
+			return '{', true
+		}
+		return '[', true
+	}
+	if code == KEY_RIGHTBRACE {
+		if shifted {
+			return '}', true
+		}
+		return ']', true
+	}
 	return 0, false
 }
 
