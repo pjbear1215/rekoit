@@ -1623,21 +1623,42 @@ func (d *Daemon) passthrough(ev InputEvent) {
 	}
 }
 
-func specialPassthroughRune(code uint16, shifted bool) (rune, bool) {
-	if code == KEY_6 && shifted {
+func specialPassthroughRune(code uint16, shifted bool, ctrl bool) (rune, bool) {
+	if code == KEY_6 && shifted && !ctrl {
 		return '^', true
 	}
-	if code == KEY_LEFTBRACE {
-		if shifted {
-			return '{', true
+
+	// Shortcuts: Ctrl + Shift + [ / ] -> ` / ~
+	if ctrl && shifted {
+		if code == KEY_LEFTBRACE {
+			return '`', true
 		}
-		return '[', true
+		if code == KEY_RIGHTBRACE {
+			return '~', true
+		}
 	}
-	if code == KEY_RIGHTBRACE {
-		if shifted {
-			return '}', true
+
+	if !ctrl {
+		// Standard Grave key (Code 41)
+		if code == KEY_GRAVE {
+			if shifted {
+				return '~', true
+			}
+			return '`', true
 		}
-		return ']', true
+		// Braces (Force correct behavior on all devices)
+		if code == KEY_LEFTBRACE {
+			if shifted {
+				return '{', true
+			}
+			return '[', true
+		}
+		if code == KEY_RIGHTBRACE {
+			if shifted {
+				return '}', true
+			}
+			return ']', true
+		}
 	}
 	return 0, false
 }
@@ -2504,6 +2525,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		d.passthrough(ev)
 		return
 	}
+
 	if d.swapLeftCtrlCapsLock {
 		switch ev.Code {
 		case KEY_CAPSLOCK:
@@ -2522,7 +2544,8 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 			}
 			return
 		}
-		if !d.korean || d.ctrl_or_alt {
+		// Ctrl 이나 Alt가 눌린 상황에서만 Shift를 그대로 전달 (시스템 단축키용)
+		if d.ctrl_or_alt {
 			d.shiftForwarded = true
 			d.passthrough(ev)
 			return
@@ -2580,24 +2603,8 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		return
 	}
 
-	// Ctrl or Alt가 눌린 동안은 무조건 우회
-	if d.ctrl_or_alt {
-		d.passthrough(ev)
-		return
-	}
-
-	// 영문 모드면 그대로 전달
-	if !d.korean {
-		d.passthrough(ev)
-		return
-	}
-
 	if ev.Value == keyPress || ev.Value == keyRepeat {
-		if isAlphaKey(ev.Code) {
-			d.handleKoreanKey(ev.Code, true)
-			return
-		}
-		if char, ok := specialPassthroughRune(ev.Code, d.shifted); ok {
+		if char, ok := specialPassthroughRune(ev.Code, d.shifted, d.ctrl_or_alt); ok {
 			if err := d.commitCurrent(); err != nil {
 				log.Printf("[OUTPUT] commit current failed: %v", err)
 				return
@@ -2607,6 +2614,25 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 				return
 			}
 			d.resetCompose()
+			return
+		}
+	}
+
+	// Ctrl or Alt가 눌린 동안은 무조건 우회 (단, 위에서 처리된 특수 단축키 제외)
+	if d.ctrl_or_alt {
+		d.passthrough(ev)
+		return
+	}
+
+	if ev.Value == keyPress || ev.Value == keyRepeat {
+		// 영문 모드면 그대로 전달
+		if !d.korean {
+			d.passthroughWithShift(ev)
+			return
+		}
+
+		if isAlphaKey(ev.Code) {
+			d.handleKoreanKey(ev.Code, true)
 			return
 		}
 		if ev.Code == KEY_SPACE || ev.Code == KEY_ENTER || ev.Code == KEY_TAB {
@@ -2633,11 +2659,16 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		return
 	}
 
+	if !d.korean {
+		d.passthroughWithShift(ev)
+		return
+	}
+
 	if ev.Value == keyRelease && isAlphaKey(ev.Code) {
 		return
 	}
 	if ev.Value == keyRelease {
-		if _, ok := specialPassthroughRune(ev.Code, d.shifted); ok {
+		if _, ok := specialPassthroughRune(ev.Code, d.shifted, d.ctrl_or_alt); ok {
 			return
 		}
 	}
