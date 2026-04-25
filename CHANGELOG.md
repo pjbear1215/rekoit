@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.4] - 2026-04-25
+
+### ✨ New Features & Improvements
+- **Unified Special Key Support**: Enhanced the input stack to support brackets (`[`, `]`), braces (`{`, `}`), and grave/tilde (`` ` ``, `~`) keys across both Korean and English modes.
+- **Improved Bluetooth Keyboard Compatibility**: Added full support for the physical `Grave` key on standard Bluetooth keyboards, bypassing reMarkable's native Type Folio-centric limitations.
+- **Type Folio Optimized Shortcuts**: Implemented ergonomic shortcuts for Type Folio users: `Ctrl+Shift+[` for backtick (`` ` ``) and `Ctrl+Shift+]` for tilde (`~`), while prioritizing standard bracket input on physical keys.
+- **Cross-Mode Consistency**: Ensured consistent special character output across all input modes by neutralizing virtual keyboard Shift-state interference.
+- **Enhanced UI Guidance**: Updated the installation success screen with clear visual guides for new shortcuts and symbol mappings.
+
 ## [0.9.3] - 2026-04-24
 
 ### 🛠️ Critical Connectivity Fix
