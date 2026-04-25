@@ -245,10 +245,27 @@ export default function CompletePage() {
                   </p>
                   <div className="text-[15px] mt-2 font-medium space-y-1" style={{ color: "rgba(0,0,0,0.6)" }}>
                     {installedState.hangul && (
-                      <p>Type Folio나 블루투스 키보드에서 <span className="font-bold text-black">Shift + Space</span> 또는 <span className="font-bold text-black">오른쪽 Alt</span> 키로 한/영을 전환하세요.</p>
+                      <>
+                        <p>Type Folio나 블루투스 키보드에서 <span className="font-bold text-black">Shift + Space</span> 또는 <span className="font-bold text-black">오른쪽 Alt</span> 키로 한/영을 전환하세요.</p>
+                        <div className="mt-4 p-4 bg-white/50 border border-black/5 text-left space-y-2">
+                          <p className="text-[13px] font-bold text-black uppercase tracking-wider mb-2">특수 기호 입력 안내</p>
+                          <p className="text-[14px] leading-relaxed">
+                            <span className="shrink-0 mr-1.5">•</span>
+                            <span className="font-bold text-black">{"[ ] { }"}</span> 키는 모든 모드에서 괄호 입력으로 우선 동작합니다.
+                          </p>
+                          <p className="text-[14px] leading-relaxed">
+                            <span className="shrink-0 mr-1.5">•</span>
+                            Type Folio의 기호(<span className="font-mono">´ ` ~ ¨</span>) 자리는 이제 <span className="font-bold text-black">{"[ { ] }"}</span> 가 입력됩니다.
+                          </p>
+                          <p className="text-[14px] leading-relaxed">
+                            <span className="shrink-0 mr-1.5">•</span>
+                            백틱(<span className="font-mono">`</span>)은 <span className="font-bold text-black">Ctrl + Shift + [</span>, 물결(<span className="font-mono">~</span>)은 <span className="font-bold text-black">Ctrl + Shift + ]</span> 단축키를 사용하세요.
+                          </p>
+                        </div>
+                      </>
                     )}
                     {installedState.bt && (
-                      <p>블루투스 키보드를 켜면 자동으로 연결을 시도합니다.</p>
+                      <p className="pt-2">블루투스 키보드를 켜면 자동으로 연결을 시도합니다.</p>
                     )}
                   </div>
                 </div>
