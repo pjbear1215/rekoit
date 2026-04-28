@@ -93,7 +93,7 @@ reconnect_paired_bluetooth_devices() {
 }
 
 restore_bt_runtime() {
-    # 0.9.1 호환 핵심 패치: Privacy = device 모드로 강제 고정
+    # 0.9.1 Compatibility patch: Force Privacy = device mode
     if grep -q '^ConditionPathIsDirectory=/sys/class/bluetooth' /usr/lib/systemd/system/bluetooth.service 2>/dev/null; then
         mount -o remount,rw / 2>/dev/null || true
         sed -i 's|^ConditionPathIsDirectory=/sys/class/bluetooth|#ConditionPathIsDirectory=/sys/class/bluetooth|' /usr/lib/systemd/system/bluetooth.service 2>/dev/null || true
@@ -132,11 +132,11 @@ restore_bt_runtime() {
         fi
 
         systemctl daemon-reload 2>/dev/null || true
-        # 0.9.1 방식: 블루투스 서비스 강제 재시작 (RPA 갱신용)
+        # 0.9.1 Method: Force restart bluetooth service (for RPA renewal)
         systemctl restart bluetooth.service 2>/dev/null || true
         systemctl restart rekoit-bt-wake-reconnect.service 2>/dev/null || true
 
-        # 비동기 전원 관리 및 연결 (0.9.1의 핵심 딜레이 루틴)
+        # Asynchronous power management and connection (0.9.1 core delay routine)
         (
             sleep 2
             POWERED="no"

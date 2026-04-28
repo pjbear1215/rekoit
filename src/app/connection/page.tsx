@@ -6,6 +6,7 @@ import StepIndicator from "@/components/StepIndicator";
 import Button from "@/components/Button";
 import { useSetup } from "@/lib/store";
 import { useGuard } from "@/lib/useGuard";
+import { useTranslation } from "@/lib/i18n";
 
 const DEVICE_NAMES: Record<string, string> = {
   "paper-pro": "Paper Pro",
@@ -13,11 +14,12 @@ const DEVICE_NAMES: Record<string, string> = {
 };
 
 const DEVICE_DESCS: Record<string, string> = {
-  "paper-pro": "한글 키패드 + 블루투스 키보드",
-  "paper-pro-move": "한글 키패드 + 블루투스 키보드",
+  "paper-pro": "Korean Input Engine + Bluetooth Keyboard",
+  "paper-pro-move": "Korean Input Engine + Bluetooth Keyboard",
 };
 
 export default function ConnectionPage() {
+  const { t } = useTranslation();
   const allowed = useGuard();
   const router = useRouter();
   const { state, setState } = useSetup();
@@ -54,7 +56,7 @@ export default function ConnectionPage() {
         });
       }
     } catch {
-      setResult({ connected: false, error: "서버 오류가 발생했습니다." });
+      setResult({ connected: false, error: "A server error occurred." });
     } finally {
       setTesting(false);
     }
@@ -93,13 +95,13 @@ export default function ConnectionPage() {
             className="text-[32px] font-bold tracking-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            기기 확인
+            {t('connection.title')}
           </h1>
           <p
             className="mt-2 text-[15px] font-medium"
             style={{ color: "var(--text-muted)" }}
           >
-            reMarkable 기기 연결 상태와 지원 모델 여부를 확인합니다.
+            {t('connection.description')}
           </p>
         </div>
 
@@ -117,7 +119,7 @@ export default function ConnectionPage() {
             onClick={handleTest}
             loading={testing}
           >
-            {testing ? "확인 중..." : "재시도"}
+            {testing ? t('common.loading') : t('common.retry')}
           </Button>
         </div>
 
@@ -133,7 +135,7 @@ export default function ConnectionPage() {
                 ))}
               </span>
               <span className="text-[16px]" style={{ color: "var(--text-muted)" }}>
-                기기 정보를 확인 중...
+                {t('connection.checkingDevice')}
               </span>
             </div>
           </div>
@@ -151,7 +153,7 @@ export default function ConnectionPage() {
             {isConnected ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-[17px]">기기 연결 성공</span>
+                  <span className="font-medium text-[17px]">{t('connection.connectionSuccess')}</span>
                   <span className="text-[13px]" style={{ color: "var(--text-muted)" }}>
                     {result.hostname} | {result.firmware} | {result.freeSpace}
                   </span>
@@ -159,15 +161,15 @@ export default function ConnectionPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="font-medium text-[17px]">연결 실패</p>
+                <p className="font-medium text-[17px]">{t('connection.connectionFailedTitle')}</p>
                 <p className="text-[15px]" style={{ color: "var(--text-muted)" }}>
                   {result.error}
                 </p>
                 <p className="text-[14px]" style={{ color: "var(--text-muted)" }}>
-                  비밀번호와 USB 연결 상태를 다시 확인한 뒤 처음 화면으로 돌아가세요.
+                  {t('connection.connectionFailedHelp')}
                 </p>
                 <Button variant="secondary" size="sm" onClick={() => router.push("/")} icon={<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" fill="none"><polyline points="15 18 9 12 15 6" /></svg>}>
-                  처음으로
+                  {t('common.first')}
                 </Button>
               </div>
             )}
@@ -197,7 +199,7 @@ export default function ConnectionPage() {
                       {DEVICE_NAMES[id]}
                     </span>
                     <span className="text-[14px] ml-3" style={{ color: "var(--text-muted)" }}>
-                      {DEVICE_DESCS[id]}
+                      {t('entry.installHangulTitle')} + {t('entry.installBtTitle')}
                     </span>
                   </div>
                   {isDetected && (
@@ -205,7 +207,7 @@ export default function ConnectionPage() {
                       className="text-[12px] flex-shrink-0"
                       style={{ backgroundColor: "var(--success-light)", color: "var(--success)", borderRadius: "9999px", padding: "4px 12px" }}
                     >
-                      감지됨
+                      {t('connection.detected')}
                     </span>
                   )}
                 </div>
@@ -219,9 +221,9 @@ export default function ConnectionPage() {
             className="py-5 px-6 rounded-xl"
             style={{ backgroundColor: "var(--error-light)", color: "var(--error)" }}
           >
-            <p className="font-medium text-[16px]">미지원 기기</p>
+            <p className="font-medium text-[16px]">{t('connection.unsupported')}</p>
             <p className="text-[14px] mt-1" style={{ color: "var(--text-muted)" }}>
-              {result?.model && result.model !== "unknown" ? `${result.model}은(는)` : "이 기기는"} 지원되지 않습니다. Paper Pro 또는 Paper Pro Move만 사용할 수 있습니다.
+              {t('connection.unsupportedHelp', { model: result?.model || 'Device' })}
             </p>
           </div>
         )}
@@ -232,14 +234,14 @@ export default function ConnectionPage() {
             onClick={() => router.push("/prerequisites")}
             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>}
           >
-            이전
+            {t('common.back')}
           </Button>
           <Button
             onClick={() => router.push("/entry")}
             disabled={!deviceReady}
             size="lg"
           >
-            다음
+            {t('common.next')}
           </Button>
         </div>
       </div>

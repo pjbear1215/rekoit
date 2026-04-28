@@ -85,29 +85,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json({ error: "Invalid IP" }, { status: 400 });
   }
 
-  // 폰트 파일 확장자 확인
+  // Check font file extension
   const ext = file.name.toLowerCase().split(".").pop();
   if (!ext || !["otf", "ttf", "woff2"].includes(ext)) {
-    return Response.json({ error: "지원되지 않는 폰트 형식입니다. OTF, TTF만 가능합니다." }, { status: 400 });
+    return Response.json({ error: "Unsupported font format. Only OTF and TTF are allowed." }, { status: 400 });
   }
 
-  // 크기 확인 (50MB 제한)
+  // Check size (50MB limit)
   if (file.size > 50 * 1024 * 1024) {
-    return Response.json({ error: "폰트 파일이 너무 큽니다. (최대 50MB)" }, { status: 400 });
+    return Response.json({ error: "Font file is too large (max 50MB)." }, { status: 400 });
   }
 
   try {
-    // 임시 파일로 저장
+    // Save to temporary file
     const tmpDir = path.join(process.cwd(), "resources", ".tmp");
     fs.mkdirSync(tmpDir, { recursive: true });
     const tmpPath = path.join(tmpDir, `font_upload.${ext}`);
     const buffer = Buffer.from(await file.arrayBuffer());
     fs.writeFileSync(tmpPath, buffer);
 
-    // 리마커블에 업로드
+    // Upload to reMarkable
     await runScp(ip, password, tmpPath, "/home/root/rekoit/fonts/NotoSansCJKkr-Regular.otf");
 
-    // 시스템 폰트 경로에도 복사 + xochitl 재시작
+    // Copy to system font path and restart xochitl
     await runSsh(ip, password, `
       mount -o remount,rw / 2>/dev/null || true
       mkdir -p /usr/share/fonts/ttf/noto
@@ -116,15 +116,15 @@ export async function POST(request: NextRequest): Promise<Response> {
       systemctl restart xochitl 2>/dev/null || true
     `);
 
-    // 로컬 resources에도 저장 (다음 설치 시 사용)
+    // Save to local resources (for future installations)
     const localFontPath = path.join(process.cwd(), "resources", "fonts", "NotoSansCJKkr-Regular.otf");
     fs.mkdirSync(path.dirname(localFontPath), { recursive: true });
     fs.copyFileSync(tmpPath, localFontPath);
 
-    // 임시 파일 제거
+    // Remove temporary file
     fs.unlinkSync(tmpPath);
 
-    return Response.json({ success: true, message: "폰트가 교체되었습니다. xochitl이 재시작됩니다." });
+    return Response.json({ success: true, message: "Font replaced successfully. xochitl will now restart." });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     return Response.json({ error: msg }, { status: 500 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import Button from "@/components/Button";
 import TerminalOutput from "@/components/TerminalOutput";
+import { useTranslation } from "@/lib/i18n";
 
 interface BluetoothPowerControlProps {
   ip: string;
@@ -14,6 +15,7 @@ export default function BluetoothPowerControl({
   ip,
   password,
 }: BluetoothPowerControlProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [savingAction, setSavingAction] = useState<"on" | "off" | null>(null);
   const [active, setActive] = useState(false);
@@ -53,7 +55,7 @@ export default function BluetoothPowerControl({
     const silent = options?.silent ?? false;
     const retries = options?.retries ?? 1;
 
-    if (!silent) addLog("블루투스 상태 확인 중...");
+    if (!silent) addLog(t('bluetooth.power.checking'));
 
     try {
       for (let attempt = 0; attempt < retries; attempt++) {
@@ -62,7 +64,10 @@ export default function BluetoothPowerControl({
           setActive(Boolean(data.active));
           setPowered(Boolean(data.powered));
           if (!silent) {
-            addLog(`상태 확인 성공: ${data.active && data.powered ? "켜짐" : data.active ? "서비스만 실행 중" : "꺼짐"}`);
+            const statusLabel = data.active && data.powered 
+              ? t('bluetooth.power.statusOn') 
+              : data.active ? t('bluetooth.power.statusServiceOnly') : t('bluetooth.power.statusOff');
+            addLog(t('bluetooth.power.success', { status: statusLabel }));
           }
           return;
         }
@@ -71,22 +76,22 @@ export default function BluetoothPowerControl({
         const transient = message.includes("Permission denied") || message.includes("timeout");
         if (!transient || attempt === retries - 1) {
           if (!silent) {
-            addLog(`ERROR: 상태 읽기 실패: ${data.error ?? "알 수 없는 오류"}`);
+            addLog(`${t('common.error')}: ${t('bluetooth.power.changeFail', { error: data.error ?? t('common.error') })}`);
           }
           return;
         }
 
-        if (!silent) addLog(`경고: 연결 재시도 중... (${attempt + 1}/${retries})`);
+        if (!silent) addLog(`${t('common.retry')}... (${attempt + 1}/${retries})`);
         await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     } catch (e) {
       if (!silent) {
-        addLog(`ERROR: 서버 오류 발생: ${e instanceof Error ? e.message : "알 수 없음"}`);
+        addLog(`${t('common.error')}: ${e instanceof Error ? e.message : t('common.error')}`);
       }
     } finally {
       setLoading(false);
     }
-  }, [ip, password, postJsonWithTimeout, addLog]);
+  }, [ip, password, postJsonWithTimeout, addLog, t]);
 
   useEffect(() => {
     void loadStatus({ retries: 4 });
@@ -94,18 +99,18 @@ export default function BluetoothPowerControl({
 
   const applyPower = async (action: "on" | "off") => {
     setSavingAction(action);
-    addLog(`블루투스 전원 ${action === "on" ? "켜기" : "끄기"} 시도 중...`);
+    addLog(t('bluetooth.power.changing', { action: action === "on" ? t('bluetooth.power.on') : t('bluetooth.power.off') }));
     try {
       const data = await postJsonWithTimeout("/api/bluetooth/power", { ip, password, action }, 20000);
       if (data.success) {
         setActive(Boolean(data.active));
         setPowered(Boolean(data.powered));
-        addLog(`OK: 전원 ${action === "on" ? "활성화됨" : "비활성화됨"}`);
+        addLog(t('bluetooth.power.changeOk', { status: action === "on" ? t('bluetooth.power.statusOn') : t('bluetooth.power.statusOff') }));
       } else {
-        addLog(`FAIL: 전원 변경 실패: ${data.error ?? "알 수 없는 오류"}`);
+        addLog(t('bluetooth.power.changeFail', { error: data.error ?? t('common.error') }));
       }
     } catch (e) {
-      addLog(`ERROR: 서버 오류: ${e instanceof Error ? e.message : "알 수 없음"}`);
+      addLog(`${t('common.error')}: ${e instanceof Error ? e.message : t('common.error')}`);
     } finally {
       setSavingAction(null);
       void loadStatus({ silent: true, retries: 2 });
@@ -121,10 +126,10 @@ export default function BluetoothPowerControl({
       >
         <div>
           <p className="text-[16px] font-bold text-black">
-            블루투스 전원
+            {t('bluetooth.power.title')}
           </p>
           <p className="text-[13px] font-medium opacity-50 mt-0.5">
-            서비스가 꺼져 있으면 꺼진 상태로 간주합니다.
+            {t('bluetooth.power.help')}
           </p>
         </div>
         <div className="flex gap-3">
@@ -136,7 +141,7 @@ export default function BluetoothPowerControl({
             disabled={savingAction !== null}
             className="font-bold"
           >
-            켜기
+            {t('bluetooth.power.on')}
           </Button>
           <Button
             variant={!isOn ? "primary" : "ghost"}
@@ -146,20 +151,20 @@ export default function BluetoothPowerControl({
             disabled={savingAction !== null}
             className="font-bold"
           >
-            끄기
+            {t('bluetooth.power.off')}
           </Button>
         </div>
       </div>
 
       <TerminalOutput
         lines={logs}
-        title="Bluetooth Power Log"
+        title={t('bluetooth.power.logTitle') || "Bluetooth Power Log"}
         initiallyOpen={false}
         maxHeight="180px"
         showDownload={logs.length > 0}
         onDownload={() => {
           const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-          const content = `=== REKOIT 블루투스 제어 로그 ===\n${logs.join("\n")}`;
+          const content = `=== REKOIT Bluetooth Power Control Log ===\n${logs.join("\n")}`;
           const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");

@@ -1,4 +1,7 @@
+"use client";
+
 import Button from "@/components/Button";
+import { useTranslation } from "@/lib/i18n";
 
 interface ActionItem {
   id: string;
@@ -18,6 +21,8 @@ export default function ActionCardGrid({
   actions,
   onNavigate,
 }: ActionCardGridProps) {
+  const { t } = useTranslation();
+
   return (
     <section className="grid gap-y-8 gap-x-3 md:grid-cols-2 xl:grid-cols-4 animate-fade-in-up stagger-1">
       {actions.map((action) => (
@@ -28,13 +33,13 @@ export default function ActionCardGrid({
         >
           <div>
             <div className="flex items-center justify-between gap-3">
-              <p className="operator-label">{action.recommended ? "권장 작업" : "작업"}</p>
+              <p className="operator-label">{action.recommended ? t('common.recommended') : t('common.action')}</p>
               {action.recommended && (
                 <span
                   className="text-[11px] font-semibold uppercase tracking-[0.14em] px-2.5 py-1 rounded-full"
                   style={{ backgroundColor: "rgba(17,24,39,0.06)", color: "var(--text-primary)" }}
                 >
-                  Recommended
+                  {t('common.recommended')}
                 </span>
               )}
             </div>
@@ -51,7 +56,7 @@ export default function ActionCardGrid({
             size="md"
             onClick={() => onNavigate(action.href)}
           >
-            열기
+            {t('common.open')}
           </Button>
         </div>
       ))}

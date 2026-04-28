@@ -27,7 +27,7 @@ async function getSnapshot() {
       installed: packageManager.installed,
       canAutoInstall: packageManager.canAutoInstall,
       hint: allReady && !packageManager.installed
-        ? "필수 도구가 이미 준비되어 있습니다."
+        ? "Required tools are already prepared."
         : packageManager.autoInstallHint,
       actionLabel: packageManager.installed ? null : getPackageManagerActionLabel(platform),
       bootstrapHint: getPackageManagerBootstrapHint(platform),
@@ -43,12 +43,12 @@ async function getSnapshot() {
   };
 }
 
-// GET: 상태 확인 (폴링용, 빠르게 반환)
+// GET: Check status (for polling, returns quickly)
 export async function GET(): Promise<NextResponse> {
   return NextResponse.json(await getSnapshot());
 }
 
-// POST: 보조 액션
+// POST: Helper actions
 export async function POST(request: Request): Promise<NextResponse> {
   let body: { action?: string };
   try {
@@ -62,7 +62,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (action === "open-brew-install") {
     const platform = getHostPlatform();
     if (platform.id !== "macos") {
-      return NextResponse.json({ error: "macOS에서만 지원" }, { status: 400 });
+      return NextResponse.json({ error: "Only supported on macOS" }, { status: 400 });
     }
     try {
       const appleScript = [
@@ -83,7 +83,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ success: true });
     } catch {
       return NextResponse.json(
-        { error: "터미널을 열 수 없습니다" },
+        { error: "Unable to open Terminal" },
         { status: 500 },
       );
     }
@@ -93,13 +93,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     const packageManager = await detectPackageManager();
     if (!packageManager.id || !packageManager.installed) {
       return NextResponse.json(
-        { error: "자동 설치용 패키지 매니저를 찾지 못했습니다" },
+        { error: "No package manager found for automatic installation" },
         { status: 400 },
       );
     }
     if (!packageManager.canAutoInstall) {
       return NextResponse.json(
-        { error: "관리자 권한이 필요해 브라우저에서 자동 설치할 수 없습니다" },
+        { error: "Automatic installation from browser is not possible as administrator privileges are required" },
         { status: 400 },
       );
     }

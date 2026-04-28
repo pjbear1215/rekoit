@@ -38,7 +38,7 @@ backup_and_mount_libepaper() {
             cp "$LIBEPAPER" "$LIBEPAPER_BACKUP"
             echo "  OK: Initial backup created"
         else
-            # 펌웨어 업데이트 감지 (MD5 비교)
+            # Firmware update detection (MD5 comparison)
             CURRENT_MD5=$(md5sum "$LIBEPAPER" | cut -d' ' -f1)
             BACKUP_MD5=$(md5sum "$LIBEPAPER_BACKUP" | cut -d' ' -f1)
             if [ "$CURRENT_MD5" != "$BACKUP_MD5" ]; then

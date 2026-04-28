@@ -142,7 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     };
 
     if (!ip || !password || !action) {
-      return NextResponse.json({ success: false, error: "ip, password, action 필수" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "ip, password, and action are required" }, { status: 400 });
     }
 
     if (!/^[\d.]+$/.test(ip)) {
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (action === "set") {
       if (typeof swapLeftCtrlCapsLock !== "boolean") {
-        return NextResponse.json({ success: false, error: "swapLeftCtrlCapsLock 필수" }, { status: 400 });
+        return NextResponse.json({ success: false, error: "swapLeftCtrlCapsLock is required" }, { status: 400 });
       }
       const result = await updateKeyboardSettings(ip, password, swapLeftCtrlCapsLock);
       return NextResponse.json({
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    return NextResponse.json({ success: false, error: "지원하지 않는 action" }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Unsupported action" }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: msg }, { status: 500 });

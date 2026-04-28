@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/lib/i18n";
 import StepIndicator from "@/components/StepIndicator";
 import Button from "@/components/Button";
 import ProgressBar from "@/components/ProgressBar";
@@ -17,6 +18,7 @@ type InstallStatus = "ready" | "installing" | "complete" | "error";
 export default function InstallPage() {
   const allowed = useGuard();
   const router = useRouter();
+  const { t } = useTranslation();
   const { state } = useSetup();
   const [status, setStatus] = useState<InstallStatus>("ready");
   const [logs, setLogs] = useState<string[]>([]);
@@ -34,7 +36,7 @@ export default function InstallPage() {
   const effectiveBtSelected = btSelected;
   const shouldConfigureBluetoothAfterInstall = effectiveBtSelected;
   const logFilePrefix = "rekoit-install";
-  const errorContext = "설치";
+  const errorContext = t('install.title');
 
   useEffect(() => {
     return () => {
@@ -51,9 +53,9 @@ export default function InstallPage() {
     setErrors([]);
     setProgress(0);
 
-    // === Step 0: 사전 접속 확인 (비밀번호 검증) ===
+    // === Step 0: Pre-connection check (password verification) ===
     try {
-      setLogs(["INFO: 기기 연결 및 SSH 인증 확인 중..."]);
+      setLogs([t('install.verifyingSsh')]);
       const checkRes = await fetch("/api/ssh/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,14 +63,14 @@ export default function InstallPage() {
       });
       const checkData = await checkRes.json();
       if (!checkRes.ok || !checkData.reachable) {
-        throw new Error(checkData.error || "SSH 연결에 실패했습니다.");
+        throw new Error(checkData.error || t('welcome.connectionFailed'));
       }
-      setLogs((prev) => [...prev, "OK: SSH 인증 성공"]);
+      setLogs((prev) => [...prev, t('install.sshSuccess')]);
 
-      // === Step 0.5: SSH 세션 쿠키 설정 ===
+      // === Step 0.5: Set SSH session cookie ===
       await ensureSshSession(state.ip, state.password);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "SSH 연결 실패";
+      const msg = err instanceof Error ? err.message : t('welcome.connectionFailed');
       setLogs((prev) => [...prev, `ERROR: ${msg}`]);
       setErrors([msg]);
       setStatus("error");
@@ -128,8 +130,8 @@ export default function InstallPage() {
         }
       } catch {
         if (statusRef.current === "installing") {
-          setLogs((prev) => [...prev, "ERROR: 연결이 끊어졌습니다."]);
-          setErrors((prev) => [...prev, "연결이 끊어졌습니다."]);
+          setLogs((prev) => [...prev, t('install.connectionLost')]);
+          setErrors((prev) => [...prev, t('install.connectionLost')]);
         }
       }
       setStatus("error");
@@ -152,41 +154,41 @@ export default function InstallPage() {
             className="text-[36px] font-bold leading-tight"
             style={{ color: "#000000" }}
           >
-            설치 준비
+            {t('install.prepareTitle')}
           </h1>
         </div>
         <div className="mt-3 flex items-center gap-2">
             <span className="text-[18px]">💡</span>
             <p className="text-[15px] font-medium" style={{ color: "#666666" }}>
-              <strong>Shift + Space</strong> 또는 <strong>오른쪽 Alt</strong>로 언어를 전환할 수 있습니다.
+              {t('install.languageToggleHelp')}
             </p>
           </div>
 
         <div className="stagger-1">
           <div className="operator-card operator-card-strong" style={{ padding: "16px 20px", border: "1.5px solid #000000" }}>
             <div className="space-y-6">
-              {/* 기기 정보 */}
+              {/* Device info */}
               <div className="flex items-center justify-between pb-4 border-b border-black/10">
-                <span className="text-[13px] font-bold uppercase tracking-wider">Connected Device</span>
+                <span className="text-[13px] font-bold uppercase tracking-wider">{t('install.connectedDevice')}</span>
                 <div className="text-right">
-                  <span className="text-[15px] font-bold">{state.deviceModel || "reMarkable 기기"}</span>
+                  <span className="text-[15px] font-bold">{state.deviceModel || "reMarkable Device"}</span>
                   <span className="ml-2 text-[13px] font-mono text-muted">({state.ip})</span>
                 </div>
               </div>
 
               {status === "ready" ? (
                 <div className="space-y-6">
-                  {/* 적용될 기능 */}
+                  {/* Features to apply */}
                   <div className="space-y-3">
-                    <label className="block text-[13px] font-bold uppercase tracking-wider">적용될 기능</label>
+                    <label className="block text-[13px] font-bold uppercase tracking-wider">{t('install.featuresToApply')}</label>
                     <div className="space-y-2">
                       {state.installHangul && (
                         <div className="flex items-center justify-between p-4 bg-black border border-black">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-white border border-white flex items-center justify-center font-bold text-[13px] text-black">KO</div>
-                            <span className="font-bold text-white">한글 입력 엔진</span>
+                            <span className="font-bold text-white">{t('install.featureHangul')}</span>
                           </div>
-                          <span className="text-[11px] font-bold text-white/60 uppercase tracking-widest">Ready</span>
+                          <span className="text-[11px] font-bold text-white/60 uppercase tracking-widest">{t('install.featureReady')}</span>
                         </div>
                       )}
                       {effectiveBtSelected && (
@@ -197,56 +199,56 @@ export default function InstallPage() {
                                 <path d="M7 7l10 10-5 5V2l5 5L7 17" />
                               </svg>
                             </div>
-                            <span className="font-bold text-white">블루투스 도우미</span>
+                            <span className="font-bold text-white">{t('install.featureBt')}</span>
                           </div>
-                          <span className="text-[11px] font-bold text-white/60 uppercase tracking-widest">Ready</span>
+                          <span className="text-[11px] font-bold text-white/60 uppercase tracking-widest">{t('install.featureReady')}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* 옵션 설정 */}
+                  {/* Option settings */}
                   {state.installHangul && (
                     <div className="space-y-4 pt-2">
-                      <label className="block text-[13px] font-bold uppercase tracking-wider">옵션 설정</label>
+                      <label className="block text-[13px] font-bold uppercase tracking-wider">{t('install.optionSettings')}</label>
                       <div className="space-y-3">
                         <Checkbox
                           checked={btSelected}
                           onChange={setBtSelected}
-                          label="블루투스 도우미 함께 설치"
-                          description="한글 입력 엔진과 블루투스 도우미를 한번에 설치합니다."
+                          label={t('install.includeBt')}
+                          description={t('install.includeBtDesc')}
                         />
                         <Checkbox
                           checked={swapCaps}
                           onChange={setSwapCaps}
-                          label="Caps Lock / Left Ctrl 스왑"
-                          description="키보드 왼쪽 Caps Lock과 Ctrl 키의 위치를 서로 바꿉니다."
+                          label={t('install.swapCaps')}
+                          description={t('install.swapCapsDesc')}
                         />
                       </div>
                     </div>
                   )}
 
-                  {/* 최종 확인 사항 */}
+                  {/* Final confirmation items */}
                   <div className="space-y-4 pt-2">
-                    <label className="block text-[13px] font-bold uppercase tracking-wider">최종 확인 (필수)</label>
+                    <label className="block text-[13px] font-bold uppercase tracking-wider">{t('install.finalConfirmation')}</label>
                     <div className="space-y-3">
                       <Checkbox
                         checked={developerModeEnabled}
                         onChange={setDeveloperModeEnabled}
-                        label="개발자 모드 활성화 확인"
-                        description="Settings > General settings > Software > Advanced > Developer mode (Enabled)"
+                        label={t('install.devMode')}
+                        description={t('install.devModeDesc')}
                       />
                       <Checkbox
                         checked={lockPasswordDisabled}
                         onChange={setLockPasswordDisabled}
-                        label="잠금 비밀번호 해제 확인"
-                        description="Settings > Security > Passcode (설치 중에는 꺼두어야 합니다)"
+                        label={t('install.passcode')}
+                        description={t('install.passcodeDesc')}
                       />
                       <Checkbox
                         checked={koremarkUninstalled}
                         onChange={setKoremarkUninstalled}
-                        label="기존 ko-remark 삭제 확인"
-                        description="기존 ko-remark (by bncedgb-glitch) 프로젝트의 원상복구 또는 팩토리 리셋을 수행했음을 확인합니다."
+                        label={t('install.priorMods')}
+                        description={t('install.priorModsDesc')}
                       />
                     </div>
                   </div>
@@ -257,15 +259,15 @@ export default function InstallPage() {
                     size="lg"
                     className="w-full font-bold"
                   >
-                    설치 시작
+                    {t('install.startButton')}
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* 설치 진행 중/완료 */}
+                  {/* Installation in progress / complete */}
                   <div className="text-center space-y-2 py-2">
                     <div className="flex items-center justify-center gap-1.5 text-[22px] font-bold">
-                      <span>{currentStep || (status === "complete" ? "설치 완료" : "준비 중")}</span>
+                      <span>{currentStep || (status === "complete" ? t('install.statusComplete') : t('install.preparing'))}</span>
                       {status === "installing" && (
                         <span className="flex gap-1 ml-1">
                           <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
@@ -275,8 +277,8 @@ export default function InstallPage() {
                       )}
                     </div>
                     <p className="text-[15px] font-medium text-muted">
-                      {status === "installing" ? "기기에 필요한 파일과 설정을 적용하고 있습니다." : 
-                       status === "complete" ? "모든 설치 과정이 끝났습니다." : "설치 중 오류가 발생했습니다."}
+                      {status === "installing" ? t('install.installingDesc') : 
+                       status === "complete" ? t('install.completeDesc') : t('install.errorDesc')}
                     </p>
                   </div>
 
@@ -289,11 +291,11 @@ export default function InstallPage() {
                     <TerminalOutput
                       lines={logs}
                       maxHeight="200px"
-                      title="Install Log"
+                      title={t('install.logTitle')}
                       showDownload={status === "complete" || status === "error"}
                       onDownload={() => {
                         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-                        const content = `=== REKOIT 설치 로그 ===\n기기: ${state.deviceModel}\nIP: ${state.ip}\n상태: ${status}\n\n${logs.join("\n")}`;
+                        const content = `=== REKOIT Installation Log ===\nDevice: ${state.deviceModel}\nIP: ${state.ip}\nStatus: ${status}\n\n${logs.join("\n")}`;
                         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
@@ -309,7 +311,7 @@ export default function InstallPage() {
                     <div className="space-y-4">
                       <ErrorReport errors={errors} allLogs={logs} context={errorContext} />
                       <Button variant="secondary" onClick={startInstall} className="w-full">
-                        재시도
+                        {t('common.retry')}
                       </Button>
                     </div>
                   )}
@@ -319,7 +321,7 @@ export default function InstallPage() {
           </div>
         </div>
 
-        {/* 하단 네비게이션 */}
+        {/* Bottom navigation */}
         <div className="flex justify-between pt-6 stagger-2">
           <Button
             variant="ghost"
@@ -327,7 +329,7 @@ export default function InstallPage() {
             disabled={status === "installing"}
             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>}
           >
-            이전
+            {t('common.back')}
           </Button>
 
           <Button
@@ -336,7 +338,7 @@ export default function InstallPage() {
             size="lg"
             className="font-bold"
           >
-            {shouldConfigureBluetoothAfterInstall ? "블루투스 페어링 단계로" : "완료 화면으로"}
+            {shouldConfigureBluetoothAfterInstall ? t('install.toBluetooth') : t('install.toComplete')}
           </Button>
         </div>
       </div>

@@ -1,4 +1,7 @@
+"use client";
+
 import type { CSSProperties } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 interface DeviceCheck {
   id: string;
@@ -51,6 +54,8 @@ export default function DeviceStatusPanel({
   safety,
   checks,
 }: DeviceStatusPanelProps) {
+  const { t } = useTranslation();
+
   return (
     <section
       className="operator-card operator-card-strong animate-fade-in-up"
@@ -58,12 +63,12 @@ export default function DeviceStatusPanel({
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="operator-label">현재 기기 상태</p>
+          <p className="operator-label">{t('manage.deviceStatus')}</p>
           <h2 className="text-[28px] font-semibold mt-2" style={{ color: "var(--text-primary)" }}>
             {runtimeStateLabel}
           </h2>
           <p className="text-[14px] mt-3" style={{ color: "var(--text-muted)" }}>
-            {hostname || "unknown"} · {model || "unknown"} · {firmware || "unknown"} · /home 여유 {freeSpace || "unknown"}
+            {hostname || "unknown"} · {model || "unknown"} · {firmware || "unknown"} · {t('manage.freeSpace', { space: freeSpace || "unknown" })}
           </p>
         </div>
 
@@ -75,7 +80,7 @@ export default function DeviceStatusPanel({
           }}
         >
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em]">
-            Safety
+            {t('manage.safety')}
           </div>
           <div className="text-[16px] font-semibold mt-2">{safety.label}</div>
           <div className="text-[13px] mt-2" style={{ color: "inherit", opacity: 0.86 }}>
@@ -102,7 +107,7 @@ export default function DeviceStatusPanel({
                 className="text-[11px] font-semibold uppercase tracking-[0.12em]"
                 style={{ color: check.pass ? "var(--success)" : "var(--warning)" }}
               >
-                {check.pass ? "Ready" : "Check"}
+                {check.pass ? t('prerequisites.statusPass') : t('manage.check')}
               </span>
             </div>
             <p className="text-[13px] mt-2" style={{ color: "var(--text-muted)" }}>

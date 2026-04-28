@@ -1,72 +1,72 @@
 # <img src="src/app/rekoit.png" alt="rekoit logo" width="40" valign="middle"> rekoit: Remarkable Korean Input Toolkit
 
-reMarkable Paper Pro 및 Paper Pro Move에서 Type Folio와 블루투스 키보드로 한글을 입력할 수 있게 돕는 도구입니다. 전반적으로 CPU와 배터리 소모를 최소화하도록 설계되었습니다.
+rekoit is a toolkit designed to enable Korean input using the Type Folio and Bluetooth keyboards on the reMarkable Paper Pro and Paper Pro Move. It is optimized to minimize CPU and battery consumption.
 
-> **⚠️ 면책 고지**
-> - 이 도구는 reMarkable AS의 공식 소프트웨어가 아닙니다.
-> - 사용자 소유 기기의 소프트웨어를 수정할 수 있으며, 이로 인해 발생할 수 있는 문제, 데이터 손실, 보증 관련 책임은 전적으로 사용자 본인에게 있습니다.
-> - 개발자와 기여자는 기기 변경에 따른 결과에 대해 책임을 지지 않습니다.
-
----
-
-## 1. 핵심 기능
-
-### 1.1 한글 입력 지원
-- **한글 표시 지원:** 시스템에 한글 폰트를 함께 구성하여, 기기 화면에서 한글이 깨짐 없이 정상적으로 표시되도록 합니다.
-- **다양한 입력기기 지원:** 공식 Type Folio와 외장 블루투스(LE) 키보드에서 모두 한글 입력을 지원합니다.
-- **성능 최적화:** 영문 입력과 대등한 수준의 빠른 타이핑 경험을 제공합니다.
-- **한/영 전환:** `Shift + Space` 및 오른쪽 `Alt` 키를 통한 한/영 전환을 지원합니다.
-- **특수 기호 및 단축키 지원:** 한글/영문 모드에 상관없이 대괄호(`[`, `]`), 중괄호(`{`, `}`) 및 백틱(`` ` ``), 물결(`~`) 기호를 완벽하게 지원합니다. Type Folio의 경우 기기에 인쇄된 기호(`´`, `` ` ``, `~`, `¨`) 대신 표준 배열에 맞게 대괄호와 중괄호가 우선적으로 입력됩니다. 외장 키보드의 물리 `Grave` 키 지원은 물론, 모든 키보드에서 `Ctrl + Shift + [` (백틱 `` ` ``), `Ctrl + Shift + ]` (물결 `~`) 단축키를 사용할 수 있습니다.
-- **키 맵핑 최적화:** 효율적인 타이핑을 위해 왼쪽 `CapsLock`과 `Ctrl` 키의 위치를 서로 바꾸는 기능을 제공합니다.
-
-### 1.2 블루투스 스택 확장 및 최적화
-- **연결 안정성 강화:** 리마커블의 미완성 블루투스 스택을 보완·확장하여, 블루투스 4.0 이상을 지원하는 최신 기기들과의 안정적인 연결을 보장합니다.
-- **지능형 자동 재연결:** IRK(Identity Resolving Key) 기반 추적 로직으로 보안 등을 위해 주기적으로 주소가 바뀌는 최신 키보드의 재연결 거부 문제를 해결했습니다.
-- **리소스 최적화:** 지수 백오프 및 기기 상태 감지를 통해 배터리 소모를 최소화합니다. 기기가 대기(Sleep) 모드일 때는 확인 작업을 완전히 중단하며, 깨어날 때는 주기를 즉시 초기화하여 빠른 재연결을 보장합니다.
-- **통합 관리:** 웹 브라우저에서 기기 스캔, 페어링, 연결 로그 확인을 단계별로 지원합니다.
-
-### 1.3 끊김 없는 사용 환경 유지
-- **자동 복구:** 펌웨어가 업데이트되더라도 재부팅 시 이를 감지하여 한글 입력 환경을 자동으로 다시 구성합니다.
-- **설정 유지:** 사용자 설정(키보드 맵핑, 블루투스 페어링 등)이 재부팅 후에도 그대로 유지됩니다.
-
-### 1.4 웹 기반 관리
-- 설치, 블루투스 페어링, 폰트 업로드, 기기 진단 기능을 웹 UI에서 직관적으로 제공합니다.
+> **⚠️ Disclaimer**
+> - This tool is not official software from reMarkable AS.
+> - Modifying your device's software may lead to issues, data loss, or voided warranties. You assume all responsibility for any consequences.
+> - Developers and contributors are not liable for any changes or damages to your device.
 
 ---
 
-## 2. 지원 기기 및 시스템 영향
+## 1. Key Features
 
-### 2.1 지원 모델
-| 기기 | 코드네임 | 상태 |
+### 1.1 Korean Input Support
+- **Korean Display Support:** Configures Korean fonts on the system to ensure Korean text is displayed correctly without broken characters.
+- **Support for Various Input Devices:** Supports Korean input on both the official Type Folio and external Bluetooth Low Energy (BLE) keyboards.
+- **Performance Optimization:** Provides a fast typing experience comparable to English input.
+- **Language Switching:** Supports switching between Korean and English using `Shift + Space` and the right `Alt` key.
+- **Special Symbols and Shortcuts:** Full support for brackets (`[`, `]`), braces (`{`, `}`), backticks (`` ` ``), and tildes (`~`) regardless of the input mode. For the Type Folio, standard layout brackets and braces take precedence over the printed symbols (`´`, `` ` ``, `~`, `¨`). In addition to the physical `Grave` key on external keyboards, `Ctrl + Shift + [` (backtick `` ` ``) and `Ctrl + Shift + ]` (tilde `~`) shortcuts are available on all keyboards.
+- **Key Mapping Optimization:** Offers a feature to swap the positions of the left `CapsLock` and `Ctrl` keys for more efficient typing.
+
+### 1.2 Bluetooth Stack Extension and Optimization
+- **Enhanced Connection Stability:** Complements and extends reMarkable's unfinished Bluetooth stack to ensure stable connections with modern devices supporting Bluetooth 4.0 or higher.
+- **Intelligent Auto-Reconnection:** Uses IRK (Identity Resolving Key) based tracking logic to resolve reconnection issues with modern keyboards that periodically rotate their MAC addresses for security.
+- **Resource Optimization:** Minimizes battery consumption through exponential backoff and device state detection. It completely stops checks when the device is in Sleep mode and resets the interval immediately upon wake-up to ensure fast reconnection.
+- **Integrated Management:** Provides step-by-step support for device scanning, pairing, and connection logs via a web browser.
+
+### 1.3 Seamless Environment Maintenance
+- **Automatic Recovery:** Automatically detects firmware updates upon reboot and reconfigures the Korean input environment.
+- **Persistent Settings:** User settings (key mapping, Bluetooth pairing, etc.) are maintained even after reboots.
+
+### 1.4 Web-based Management
+- Provides an intuitive web UI for installation, Bluetooth pairing, font uploads, and device diagnostics.
+
+---
+
+## 2. Supported Devices and System Impact
+
+### 2.1 Supported Models
+| Device | Codename | Status |
 |------|----------|------|
-| Paper Pro | Ferrari | 지원 |
-| Paper Pro Move | Chiappa | 지원 |
-| reMarkable 2 | - | 미지원 |
+| Paper Pro | Ferrari | Supported |
+| Paper Pro Move | Chiappa | Supported |
+| reMarkable 2 | - | Not Supported |
 
-### 2.2 보증 및 안정성
-- **바이너리 변조 없음:** 기기의 핵심 실행 파일인 `xochitl` 바이너리를 직접 수정하거나 패치하지 않습니다.
-- **비파괴적 시스템 확장:** 리눅스의 바인드 마운트(Bind Mount) 기술을 활용합니다. 이는 물리 디스크의 원본 파일을 덮어쓰는 대신, 가상 메모리(`tmpfs`)에 준비된 파일을 그 위에 '겹쳐서 보이게' 하는 방식입니다.
-- **검증된 안전성:** 실제 원본 파일 시스템에는 단 1바이트의 변경도 가하지 않으므로 물리적인 손상 위험이 없습니다. 설치를 제거하면 이 가상 연결이 즉시 해제되어, 별도의 복구 과정 없이도 기기는 즉시 완벽한 순정 상태가 됩니다.
-- **안전한 지속성:** 사용자 설정과 한글 입력 환경은 부팅 시 이 가상 연결을 자동으로 재구성해 주는 전용 서비스(`rekoit-restore`)를 통해 안전하게 유지됩니다. 팩토리 리셋 시에는 이 서비스와 설정 데이터까지 모두 깨끗이 소멸됩니다.
+### 2.2 Warranty and Stability
+- **No Binary Modification:** Does not directly modify or patch the `xochitl` binary, which is the core executable of the device.
+- **Non-destructive System Extension:** Utilizes Linux Bind Mount technology. Instead of overwriting original files on the physical disk, it "overlays" files prepared in virtual memory (`tmpfs`).
+- **Verified Safety:** No changes are made to the actual original file system, ensuring zero risk of physical damage. Removing the installation immediately releases these virtual connections, returning the device to its pure stock state without any recovery process.
+- **Secure Persistence:** User settings and the Korean input environment are safely maintained through a dedicated service (`rekoit-restore`) that automatically reconstructs these virtual connections at boot. A factory reset will completely wipe this service and all configuration data.
 
 ---
 
-## 3. 설치 가이드
+## 3. Installation Guide
 
-### 3.1 호스트 PC 준비
+### 3.1 Host PC Preparation
 
-호스트 PC(macOS / Linux / WSL)에 아래 도구들이 설치되어 있는지 확인합니다.
+Ensure the following tools are installed on your host PC (macOS / Linux / WSL):
 
-- **Node.js:** 18 버전 이상
-- **필수 도구:** `ssh`, `scp`, `sshpass`, `zstd`, `go`, `zig`
-- **패키지 매니저:** macOS(`Homebrew`), Linux(`apt`, `dnf`, `pacman`, `zypper`, `apk` 등)
+- **Node.js:** Version 18 or higher
+- **Required Tools:** `ssh`, `scp`, `sshpass`, `zstd`, `go`, `zig`
+- **Package Managers:** macOS (`Homebrew`), Linux (`apt`, `dnf`, `pacman`, `zypper`, `apk`, etc.)
 
-#### 💻 환경별 퀵 가이드
-- **macOS:** 가장 권장되는 환경입니다. `Homebrew`가 있으면 웹앱에서 필수 도구를 자동으로 설치할 수 있습니다.
-- **Linux:** 지원되는 패키지 매니저가 있고 비대화형 `sudo`가 가능한 환경이면 자동 설치를 시도합니다. 그렇지 않으면 안내되는 수동 설치 명령을 사용하세요.
-- **WSL:** Linux와 동일하나 도구는 반드시 WSL 내부에 설치해야 합니다. 브라우저는 Windows 쪽에서 `http://localhost:3000`을 열어 접속합니다.
+#### 💻 Environment Quick Guide
+- **macOS:** The most recommended environment. If `Homebrew` is installed, the web app can automatically install the required tools.
+- **Linux:** If a supported package manager is available and non-interactive `sudo` is possible, automatic installation will be attempted. Otherwise, use the manual installation commands provided.
+- **WSL:** Same as Linux, but tools must be installed inside the WSL environment. Access the web UI by opening `http://localhost:3000` in your Windows browser.
 
-#### 도구 수동 설치 예시
+#### Manual Tool Installation Examples
 ```bash
 # macOS
 brew install hudochenkov/sshpass/sshpass zstd go zig
@@ -76,65 +76,65 @@ sudo apt-get update && sudo apt-get install -y openssh-client sshpass zstd golan
 sudo snap install zig --classic --beta
 ```
 
-### 3.2 기기 준비 및 권장 설치 가이드
+### 3.2 Device Preparation and Recommended Installation
 
-1. **기존 ko-remark 프로젝트 삭제 (필수):** 기존 [ko-remark](https://github.com/bncedgb-glitch/ko-remark) (by bncedgb-glitch) 프로젝트를 이미 사용 중인 경우, **rekoit 설치 전**에 반드시 ko-remark의 `전체 원상복구(Uninstall)`를 실행하거나 기기의 `팩토리 리셋`을 수행해야 합니다.
-2. **권장 설치 옵션:**
-   - **Type Folio 전용:** '한글 입력 엔진'만 설치해도 충분합니다.
-   - **외장 키보드 병행:** '블루투스 도우미'를 포함하여 설치하는 것을 강력히 권장합니다.
-3. **재설치 및 복구:** rekoit 사용 중에는 기존 설치를 제거하지 않고도 언제든 다시 설치하여 설정을 갱신하거나 손상된 환경을 복구할 수 있습니다.
-4. **개발자 모드 활성화:** `Settings > General settings > Software > Advanced > Developer mode`를 `Enabled`로 설정하세요.
-5. **SSH 비밀번호 확인:** `Settings > Help > Copyrights and licenses > General Information > GPLv3 Compliance`에서 현재 기기의 비밀번호를 확인하세요.
-6. **잠금 화면 해제:** 설치 중 재시작이 발생할 수 있으므로 잠금 비밀번호를 일시적으로 꺼두는 것을 권장합니다.
-7. **연결:** USB-C 케이블로 연결합니다. (기본 IP: `10.11.99.1`) 무선 연결을 위해서는 기기에서 `rm-ssh-over-wlan on` 명령이 필요할 수 있습니다.
+1. **Delete Existing ko-remark (Required):** If you are already using the [ko-remark](https://github.com/bncedgb-glitch/ko-remark) (by bncedgb-glitch) project, you **must** perform a "Full Uninstall" of ko-remark or a "Factory Reset" **before installing rekoit**.
+2. **Recommended Installation Options:**
+   - **Type Folio Only:** Installing only the "Korean Input Engine" is sufficient.
+   - **With External Keyboard:** It is strongly recommended to include the "Bluetooth Helper" in your installation.
+3. **Reinstallation and Recovery:** While using rekoit, you can reinstall at any time to update settings or recover a damaged environment without removing the existing installation.
+4. **Enable Developer Mode:** Go to `Settings > General settings > Software > Advanced > Developer mode` and set it to `Enabled`.
+5. **Check SSH Password:** Find your device's password in `Settings > Help > Copyrights and licenses > General Information > GPLv3 Compliance`.
+6. **Disable Lock Screen:** It is recommended to temporarily disable your passcode as restarts may occur during installation.
+7. **Connection:** Connect via USB-C cable (Default IP: `10.11.99.1`). For wireless connections, you might need to run the `rm-ssh-over-wlan on` command on the device.
 
-### 3.3 웹 UI를 통한 설치 단계
+### 3.3 Installation Steps via Web UI
 
-1. **웹앱 실행:** 소스 루트에서 `npm install` 후 `npm run dev`를 실행합니다.
-2. **1단계. 정보 입력:** IP 주소와 SSH 비밀번호를 입력하고 연결을 확인합니다.
-3. **2단계. 사전 준비:** 호스트 PC의 필수 도구 설치 상태를 확인하고 필요한 경우 설치를 진행합니다.
-4. **3단계. 기기 확인:** 기기 연결 상태와 지원 모델 여부를 최종 확인합니다.
-5. **4단계. 메뉴 선택:** 한글 입력 엔진 및 블루투스 도우미 설치 여부를 선택합니다. (기존 설치자는 '기기 관리' 선택)
-6. **5단계. 설치 실행:** 설치가 진행되며 완료 후 블루투스 페어링 단계로 이어집니다.
-
----
-
-## 4. 관리 및 원상복구
-
-### 4.1 웹 UI를 통한 제거
-1. 웹앱의 `4단계. 메뉴 선택` 화면에서 `기기 관리`를 선택합니다.
-2. 하단의 `복구 및 제거` 섹션에서 원하는 항목(전체 원상복구, 부분 제거 등)을 선택합니다.
-3. **전체 원상복구 시 수행 작업:**
-   - `hangul-daemon` 서비스 중지 및 런타임 파일 제거
-   - 블루투스 서비스 및 페어링 데이터 정리
-   - 시스템 라이브러리(`libepaper.so`) 마운트 해제
-   - 펌웨어 업데이트 대응용 포스트 업데이트 훅 제거
-
-### 4.2 팩토리 리셋을 통한 제거
-기기 설정에서 팩토리 리셋을 수행하면 모든 설치 흔적, 런타임 서비스, 페어링 데이터가 삭제됩니다. 리셋 후 SSH 접속 시에는 새로 생성된 비밀번호를 확인해야 합니다.
+1. **Run Web App:** Run `npm install` and then `npm run dev` in the source root.
+2. **Step 1. Information Input:** Enter the IP address and SSH password and verify the connection.
+3. **Step 2. Prerequisites:** Check the installation status of required tools on the host PC and install them if necessary.
+4. **Step 3. Device Verification:** Final check of the device connection and model support.
+5. **Step 4. Menu Selection:** Choose whether to install the Korean Input Engine and Bluetooth Helper. (Existing users select "Device Management")
+6. **Step 5. Execute Installation:** The installation will proceed, followed by the Bluetooth pairing stage.
 
 ---
 
-## 5. 유지 보수 및 업데이트
+## 4. Management and Uninstallation
 
-### 5.1 펌웨어 업데이트 대응
-rekoit은 펌웨어 업데이트 후에도 자동으로 복구되도록 설계되었습니다. 업데이트 후 기기가 재부팅되면 `rekoit-restore` 서비스가 이를 감지하여 환경을 다시 구성합니다. 만약 자동 복구가 되지 않는다면, 웹앱을 통해 설치를 다시 진행해 주세요.
+### 4.1 Uninstallation via Web UI
+1. Select `Device Management` in `Step 4. Menu Selection` of the web app.
+2. Select the desired item (Full Uninstall, Partial Removal, etc.) in the `Recovery and Removal` section at the bottom.
+3. **Actions performed during Full Uninstall:**
+   - Stops the `hangul-daemon` service and removes runtime files.
+   - Cleans up Bluetooth services and pairing data.
+   - Unmounts system libraries (`libepaper.so`).
+   - Removes post-update hooks for firmware update compatibility.
+
+### 4.2 Uninstallation via Factory Reset
+Performing a factory reset from the device settings will delete all traces of installation, runtime services, and pairing data. You will need to check the newly generated SSH password if you connect via SSH after a reset.
 
 ---
 
-## 6. 문제 해결
+## 5. Maintenance and Updates
 
-- **SSH 연결 실패:** USB 케이블 상태, 개발자 모드 활성화, SSH 비밀번호(대소문자 구분)를 다시 확인하세요.
-- **블루투스 기기 검색 안 됨:** 키보드가 LE(Low Energy)를 지원하는지 확인하세요. 구형 Classic 블루투스 모델은 검색되지 않습니다.
-- **패키지 설치 오류:** `sshpass`나 `zstd` 등이 설치되지 않는 경우, [3.1 섹션](#31-호스트-pc-준비)을 참고하여 수동으로 설치하세요.
-- **블루투스 패스키 안 보임:** 키보드를 다시 페어링 모드로 전환하거나 기존 페어링 정보를 '기기 관리'에서 삭제 후 다시 시도하세요.
+### 5.1 Firmware Update Compatibility
+rekoit is designed to recover automatically after a firmware update. When the device reboots after an update, the `rekoit-restore` service detects it and reconstructs the environment. If automatic recovery fails, please run the installation again via the web app.
 
 ---
 
-## 7. 라이선스 및 크레딧
+## 6. Troubleshooting
 
-### 7.1 라이선스
-이 프로젝트는 **MIT** 라이선스로 배포됩니다.
+- **SSH Connection Failure:** Double-check the USB cable, developer mode status, and the SSH password (case-sensitive).
+- **Bluetooth Device Not Found:** Ensure your keyboard supports Bluetooth Low Energy (BLE). Older "Classic" Bluetooth models will not be discovered.
+- **Package Installation Error:** If `sshpass` or `zstd` fails to install, refer to [Section 3.1](#31-host-pc-preparation) for manual installation.
+- **Bluetooth Passkey Not Appearing:** Put the keyboard back into pairing mode or delete existing pairing info in "Device Management" and try again.
+
+---
+
+## 7. License and Credits
+
+### 7.1 License
+This project is distributed under the **MIT** License.
 
 ### 7.2 Credits & Acknowledgments
-본 프로젝트는 [ko-remark](https://github.com/bncedgb-glitch/ko-remark) (by bncedgb-glitch) 프로젝트의 아이디어와 프로토타입을 기반으로 하여, 실제 환경에서 안정적으로 동작하도록 재설계하고 완성도를 높인 개선판입니다. 독창적인 영감을 준 원작자에게 깊은 감사를 표합니다.
+This project is an improved version based on the ideas and prototypes of the [ko-remark](https://github.com/bncedgb-glitch/ko-remark) (by bncedgb-glitch) project. It has been redesigned for stability and polished for production use. We express our deep gratitude to the original author for the creative inspiration.

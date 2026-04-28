@@ -30,7 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!ip || !password) {
     return NextResponse.json(
-      { error: "IP와 비밀번호가 필요합니다." },
+      { error: "IP and password are required." },
       { status: 400 },
     );
   }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Validate IP format
   if (!/^[\d.]+$/.test(ip)) {
     return NextResponse.json(
-      { error: "잘못된 IP 주소 형식입니다." },
+      { error: "Invalid IP address format." },
       { status: 400 },
     );
   }
@@ -62,10 +62,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const model = (lines[3] ?? "unknown").replace(/\0/g, "").trim();
 
-    // 기기 모델 자동 감지 (코드네임 기반)
+    // Auto-detect device model (based on codename)
     // Paper Pro = "Ferrari" (i.MX8MM)
     // Paper Pro Move = "Chiappa" (i.MX93)
-    // reMarkable 2 등 기타 기기는 미지원
+    // Other devices like reMarkable 2 are not supported
     const modelLower = model.toLowerCase();
     let detectedDevice: "paper-pro-move" | "paper-pro" | null = null;
     if (modelLower.includes("ferrari")) {
@@ -85,20 +85,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    let diagnosis = "연결에 실패했습니다.";
+    let diagnosis = "Connection failed.";
     let status = 400;
 
     if (msg.includes("REMOTE HOST IDENTIFICATION HAS CHANGED")) {
-      diagnosis = "SSH 호스트 키가 변경되었습니다. known_hosts 파일을 확인하세요.";
+      diagnosis = "SSH host key has changed. Please check your known_hosts file.";
     } else if (msg.includes("Permission denied")) {
-      diagnosis = "SSH 비밀번호가 올바르지 않습니다. 기기 설정에서 정확한 비밀번호를 확인하세요.";
+      diagnosis = "Incorrect SSH password. Please check the accurate password in your device settings.";
       status = 401;
     } else if (msg.includes("Connection refused")) {
-      diagnosis = "SSH 서비스가 응답하지 않습니다. USB 연결을 확인하세요.";
+      diagnosis = "SSH service is not responding. Please check your USB connection.";
     } else if (msg.includes("timed out") || msg.includes("ETIMEDOUT")) {
-      diagnosis = "연결 시간이 초과되었습니다. USB 케이블을 확인하세요.";
+      diagnosis = "Connection timed out. Please check your USB cable.";
     } else if (msg.includes("command not found")) {
-      diagnosis = "sshpass가 설치되어 있지 않습니다. 사전 준비 단계에서 설치하거나 호스트 터미널에서 직접 설치하세요.";
+      diagnosis = "sshpass is not installed. Please install it in the Prerequisites stage or directly via your host terminal.";
     }
     return NextResponse.json(
       { connected: false, reachable: false, error: diagnosis },

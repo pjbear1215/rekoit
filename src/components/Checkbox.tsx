@@ -10,8 +10,8 @@ interface CheckboxProps {
   disabled?: boolean;
 }
 
-// 커스텀 스타일 체크박스 컴포넌트
-// 네이티브 input은 sr-only로 숨기고 접근성 유지
+// Custom style checkbox component
+// Native input is hidden with sr-only to maintain accessibility
 export default function Checkbox({
   checked,
   onChange,
@@ -23,7 +23,7 @@ export default function Checkbox({
     <label
       className={`flex items-start gap-5 cursor-pointer w-full transition-all ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
-      {/* 체크박스 시각 요소: 설치 전 필수 확인 스타일 (w-6 h-6) */}
+      {/* Checkbox visual element: Required check style before installation (w-6 h-6) */}
       <div
         className={`mt-0.5 w-6 h-6 shrink-0 border-2 flex items-center justify-center transition-colors ${
           checked ? "bg-[var(--success)] border-[var(--success)]" : "border-gray-300"
@@ -36,7 +36,7 @@ export default function Checkbox({
           </svg>
         )}
       </div>
-      {/* 스크린 리더용 숨겨진 네이티브 input */}
+      {/* Hidden native input for screen readers */}
       <input
         type="checkbox"
         checked={checked}

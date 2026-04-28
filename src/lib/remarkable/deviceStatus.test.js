@@ -23,7 +23,7 @@ test("getSafetyStatus marks supported connected devices as safe", () => {
   });
 
   assert.equal(status.tone, "safe");
-  assert.equal(status.label, "보증 영향 낮음");
+  assert.equal(status.label, "Low Warranty Impact");
 });
 
 test("getRecommendedAction points clean devices to the safe install flow", () => {

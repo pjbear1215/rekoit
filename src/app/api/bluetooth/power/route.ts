@@ -146,13 +146,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!ip || !password || !["on", "off"].includes(action)) {
     return NextResponse.json(
-      { error: "ip, password, action(on/off) 필수" },
+      { error: "ip, password, and action (on/off) are required" },
       { status: 400 },
     );
   }
 
   if (!/^[\d.]+$/.test(ip)) {
-    return NextResponse.json({ error: "잘못된 IP 형식" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid IP format" }, { status: 400 });
   }
 
   try {

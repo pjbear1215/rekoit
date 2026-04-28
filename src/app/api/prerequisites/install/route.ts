@@ -48,7 +48,7 @@ export async function GET(): Promise<Response> {
               tool: tool.command,
               label: tool.name,
               status: "failed",
-              detail: "설치 명령을 만들지 못했습니다.",
+              detail: "Failed to generate installation command.",
               progress: Math.round((completed / total) * 100),
             });
             continue;

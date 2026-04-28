@@ -9,7 +9,7 @@ import {
 test("buildFontRemovalCommands preserves font when deleteFont is false", () => {
   assert.equal(
     buildFontRemovalCommands({ deleteFont: false }),
-    "# 폰트 유지",
+    "# Preserve font",
   );
 });
 

@@ -110,7 +110,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!file.name.endsWith(".tar.gz") && !file.name.endsWith(".tgz")) {
     return NextResponse.json(
-      { error: "tar.gz 파일만 지원합니다" },
+      { error: "Only .tar.gz files are supported" },
       { status: 400 },
     );
   }
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       success: true,
-      message: "백업에서 복원 완료",
+      message: "Restoration from backup complete",
       output,
     });
   } catch (error: unknown) {

@@ -73,7 +73,7 @@ echo " REKOIT Installer v2.4"
 echo "=========================================="
 echo ""
 
-# 설치 모드: env 우선, 없으면 마지막 설치 상태 유지
+# Installation mode: env first, otherwise maintain last installation state
 ENV_INSTALL_HANGUL=$INSTALL_HANGUL
 ENV_INSTALL_BT=$INSTALL_BT
 ENV_BLUETOOTH_POWER_ON=$BLUETOOTH_POWER_ON
@@ -173,7 +173,7 @@ else
     echo "[8/10] SKIP: libepaper backup/runtime mount disabled"
 fi
 
-# 9. REKOIT 복구 서비스 설치 (부팅 시 자동 복구 보장)
+# 9. Install REKOIT restore service (guarantee auto-restore on boot)
 echo "[9/10] Installing REKOIT restore service..."
 if [ -f "$BASEDIR/rekoit-restore.service" ]; then
     cp "$BASEDIR/rekoit-restore.service" /etc/systemd/system/rekoit-restore.service
@@ -192,7 +192,7 @@ else
     exit 1
 fi
 
-# 10. SWUpdate post-update hook (펌웨어 업데이트 후 한글 자동 복구)
+# 10. SWUpdate post-update hook (auto-restore after firmware update)
 echo "[10/11] Installing SWUpdate post-update hook..."
 POST_UPDATE_SCRIPTS="post-update.sh"
 if [ "$INSTALL_HANGUL" = "1" ]; then
@@ -210,14 +210,14 @@ for script in $POST_UPDATE_SCRIPTS; do
 done
 echo "  OK: post-update helpers ready"
 
-# REKOIT factory guard 설치 (rootfs에 직접)
+# Install REKOIT factory guard (directly on rootfs)
 # ... (rest of the script)
 if [ "$INSTALL_BT" = "1" ]; then
 echo "  Installing REKOIT safety guard..."
 mkdir -p /opt/rekoit
 cat > /opt/rekoit/factory-guard.sh << 'FGUARD_SCRIPT_EOF'
 #!/bin/sh
-# rekoit-factory-guard: 팩토리 리셋 후 REKOIT rootfs 흔적 자동 정리
+# rekoit-factory-guard: Automatically clean up REKOIT rootfs traces after factory reset
 HOME_STATE="/home/root/rekoit"
 
 HAS_BT_ARTIFACTS=0
@@ -241,7 +241,7 @@ if [ -d "$HOME_STATE" ]; then
 fi
 mount -o remount,rw / 2>/dev/null || true
 rm -f /etc/swupdate/conf.d/99-rekoit-postupdate
-# REKOIT 공통 서비스와 한글 입력 런타임 비활성화 및 제거
+# Disable and remove REKOIT common services and hangul runtime
 systemctl stop hangul-daemon.service 2>/dev/null || true
 systemctl disable hangul-daemon.service 2>/dev/null || true
 systemctl disable rekoit-restore.service 2>/dev/null || true
@@ -262,10 +262,10 @@ rmdir /etc/systemd/system/bluetooth.service.d 2>/dev/null || true
 sed -i 's|^##*ConditionPathIsDirectory=/sys/class/bluetooth|ConditionPathIsDirectory=/sys/class/bluetooth|' /usr/lib/systemd/system/bluetooth.service 2>/dev/null || true
 sed -i '/^Privacy = off$/d' /etc/bluetooth/main.conf 2>/dev/null || true
 sed -i '/^FastConnectable = true$/d' /etc/bluetooth/main.conf 2>/dev/null || true
-# 한글 폰트 제거
+# Remove Korean font
 rm -f /usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf
 fc-cache -f 2>/dev/null || true
-# 자기 자신 정리
+# Self cleanup
 rm -f /opt/rekoit/factory-guard.sh
 rmdir /opt/rekoit 2>/dev/null || true
 systemctl disable rekoit-factory-guard.service 2>/dev/null || true
@@ -299,7 +299,7 @@ rm -f /etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service
 rm -rf /opt/rekoit 2>/dev/null || true
 fi
 
-# swupdate conf.d 등록 (현재 세션용)
+# Register swupdate conf.d (for current session)
 mkdir -p /etc/swupdate/conf.d
 cat > /etc/swupdate/conf.d/99-rekoit-postupdate << 'CONFD_EOF'
 # REKOIT post-update hook
@@ -307,7 +307,7 @@ SWUPDATE_ARGS+=" -p /home/root/rekoit/post-update.sh"
 CONFD_EOF
 echo "  OK: swupdate conf.d registered"
 
-# 11. rootfs 영구 보존 (/etc는 overlayfs + tmpfs — 재부팅 시 유실)
+# 11. Rootfs persistence (/etc is overlayfs + tmpfs — lost on reboot)
 echo "[11/11] Writing persistent files to rootfs..."
 CURRENT_ROOT=$(mount | grep ' / ' | head -n1 | awk '{print $1}')
 ROOTFS_DEV=""
@@ -315,7 +315,7 @@ case "$CURRENT_ROOT" in
     /dev/mmcblk0p2) ROOTFS_DEV="/dev/mmcblk0p3" ;;
     /dev/mmcblk0p3) ROOTFS_DEV="/dev/mmcblk0p2" ;;
     *)
-        # 슬롯 기반이 아닌 경우(예: Ferrari) fallback
+        # Fallback if not slot-based (e.g., Ferrari)
         ROOTFS_DEV=$(findmnt -n -o SOURCE / 2>/dev/null | grep mmcblk | head -1)
         ;;
 esac
@@ -374,18 +374,18 @@ if [ -n "$ROOTFS_DEV" ] && [ "$ROOTFS_DEV" != "$CURRENT_ROOT" ]; then
                 rm -f /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service
             fi
 
-            # swupdate conf.d (post-update hook 영속화)
+            # swupdate conf.d (persist post-update hook)
             mkdir -p /mnt/rootfs/etc/swupdate/conf.d
             cp /etc/swupdate/conf.d/99-rekoit-postupdate /mnt/rootfs/etc/swupdate/conf.d/ 2>/dev/null || true
 
-            # REKOIT 복구 서비스 (부팅 시 안전망)
+            # REKOIT restore service (boot-time safety net)
             if [ -f "$BASEDIR/rekoit-restore.service" ]; then
                 mkdir -p /mnt/rootfs/etc/systemd/system/multi-user.target.wants
                 cp "$BASEDIR/rekoit-restore.service" /mnt/rootfs/etc/systemd/system/rekoit-restore.service
                 ln -sf /etc/systemd/system/rekoit-restore.service /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-restore.service
             fi
 
-        # REKOIT factory guard 서비스 (팩토리 리셋 안전장치)
+        # REKOIT factory guard service (factory reset safety mechanism)
         if [ "$INSTALL_BT" = "1" ] && [ -f /etc/systemd/system/rekoit-factory-guard.service ]; then
             cp /etc/systemd/system/rekoit-factory-guard.service /mnt/rootfs/etc/systemd/system/
             ln -sf /etc/systemd/system/rekoit-factory-guard.service /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service

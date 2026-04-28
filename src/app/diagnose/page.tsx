@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Button from "@/components/Button";
 import { useSetup } from "@/lib/store";
+import { useTranslation } from "@/lib/i18n";
 
 export default function DiagnosePage(): React.JSX.Element {
+  const { t } = useTranslation();
   const { state } = useSetup();
   const [ip, setIp] = useState(state.ip || "10.11.99.1");
   const [password, setPassword] = useState(state.password || "");
@@ -23,7 +25,7 @@ export default function DiagnosePage(): React.JSX.Element {
       const data = await res.json();
       setDiagResult(data.results);
     } catch {
-      setDiagResult({ error: "서버에 연결할 수 없습니다." });
+      setDiagResult({ error: t('connection.connectionFailedTitle') || "Unable to connect to the server." });
     } finally {
       setDiagnosing(false);
     }
@@ -37,20 +39,20 @@ export default function DiagnosePage(): React.JSX.Element {
             className="text-[36px] font-bold leading-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            키보드 진단
+            {t('diagnose.title')}
           </h1>
           <p
             className="mt-3 text-[17px]"
             style={{ color: "var(--text-muted)" }}
           >
-            Type Folio 및 블루투스 키보드 입력 문제를 진단합니다.
+            {t('diagnose.description')}
           </p>
         </div>
 
         <div className="space-y-4 animate-fade-in-up stagger-1">
           <div>
             <label className="block text-[14px] mb-2" style={{ color: "var(--text-muted)" }}>
-              IP 주소
+              {t('welcome.ipAddress')}
             </label>
             <input
               type="text"
@@ -67,7 +69,7 @@ export default function DiagnosePage(): React.JSX.Element {
           </div>
           <div>
             <label className="block text-[14px] mb-2" style={{ color: "var(--text-muted)" }}>
-              비밀번호
+              {t('welcome.sshPassword')}
             </label>
             <input
               type="password"
@@ -83,7 +85,7 @@ export default function DiagnosePage(): React.JSX.Element {
             />
           </div>
           <Button onClick={runDiagnose} loading={diagnosing} size="lg">
-            진단 실행
+            {t('diagnose.runDiagnose')}
           </Button>
         </div>
 
@@ -106,7 +108,7 @@ export default function DiagnosePage(): React.JSX.Element {
                 <div className="w-[10px] h-[10px] rounded-full" style={{ backgroundColor: "#4ade80" }} />
               </div>
               <span className="text-[11px] ml-2 font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
-                진단 결과
+                {t('diagnose.diagResultTitle')}
               </span>
             </div>
             {/* Terminal body */}

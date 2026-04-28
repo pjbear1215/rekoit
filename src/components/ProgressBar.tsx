@@ -6,21 +6,21 @@ interface ProgressBarProps {
   currentStep?: string;
 }
 
-// 진행률 표시 바 컴포넌트
-// active 상태에서 쉬머 애니메이션, complete 상태에서 그라데이션, error 상태에서 단색 표시
+// Progress bar component
+// Displays shimmer animation in active state, solid for complete/error states
 export default function ProgressBar({
   progress,
   status = "active",
 }: ProgressBarProps): ReactNode {
   const isComplete = progress >= 100 && status === "complete";
 
-  // 상태별 채움 색상 (reMarkable 스타일: 그라데이션 제거, 단색 강조)
+  // State-specific fill colors (reMarkable style: solid color emphasis)
   const fillBackground =
     status === "error"
       ? "var(--error)"
       : status === "complete"
-        ? "var(--accent)" // 성공 시 블랙으로 깔끔하게 마무리
-        : "var(--accent-secondary)"; // 진행 중에는 세련된 블루
+        ? "var(--accent)" // Clean black finish on success
+        : "var(--accent-secondary)"; // Sophisticated blue during progress
 
   return (
     <div className="w-full">
@@ -35,14 +35,14 @@ export default function ProgressBar({
           {progress}%
         </span>
       </div>
-      {/* 진행률 바 트랙 */}
+      {/* Progress bar track */}
       <div
         className="h-1.5 overflow-hidden rounded-full w-full"
         style={{
           backgroundColor: "var(--border-light)",
         }}
       >
-        {/* 진행률 바 채움 영역 */}
+        {/* Progress bar fill area */}
         <div
           className="h-full relative transition-all duration-700 ease-out"
           style={{
@@ -51,7 +51,7 @@ export default function ProgressBar({
             borderRadius: progress > 98 ? "inherit" : "9999px 0 0 9999px",
           }}
         >
-          {/* 쉬머 오버레이 제거 (플랫한 디자인 지향) */}
+          {/* Shimmer overlay removed (aiming for flat design) */}
         </div>
       </div>
     </div>

@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #ffffff; /* 순백색 배경 */
-  --bg-secondary: #f6f6f6; /* 밝은 회색 섹션 */
+  --bg-primary: #ffffff; /* Pure white background */
+  --bg-secondary: #f6f6f6; /* Light gray section */
   --bg-card: #ffffff;
   --bg-sidebar: #fbfbfd;
-  --text-primary: #000000; /* 완전한 블랙 */
+  --text-primary: #000000; /* Pure black */
   --text-secondary: #333333;
   --text-muted: #666666;
-  --border: #000000; /* 고대비 테두리 */
+  --border: #000000; /* High-contrast border */
   --border-light: #e0e0e0;
-  --accent: #000000; /* 버튼은 기본적으로 블랙 */
+  --accent: #000000; /* Buttons are black by default */
   --accent-hover: #333333;
   --accent-light: rgba(0, 0, 0, 0.04);
   --accent-secondary: #000000;
   --accent-secondary-soft: rgba(0, 0, 0, 0.04);
-  --success: #1a1a1a; /* 성공 시에도 블랙 톤을 유지하되 텍스트로 변화를 줌 */
+  --success: #1a1a1a; /* Keep black tone even for success, distinguish with text */
   --success-light: #f6f6f6;
-  --error: #000000; /* 에러조차 블랙으로 표현하되 스타일로 구분 (reMarkable 스타일) */
+  --error: #000000; /* Express errors in black as well, distinguish with style (reMarkable style) */
   --error-light: #fff5f5;
   --warning: #000000;
   --warning-light: #fff9f5;
@@ -286,7 +286,7 @@ input:focus {
   border: 1px solid var(--border-light);
   border-radius: 0px;
   box-shadow: var(--shadow-sm);
-  padding: 8px 12px; /* 더 축소 */
+  padding: 8px 12px; /* Further reduced */
   transition: all var(--transition-base);
 }
 .card-interactive:hover {
@@ -305,7 +305,7 @@ input:focus {
   background-color: #ffffff;
   border: 1px solid var(--border-light);
   box-shadow: var(--shadow-xs);
-  padding: 12px; /* 모바일 12px로 축소 */
+  padding: 12px; /* Reduced to 12px for mobile */
   transition: padding var(--transition-base), box-shadow var(--transition-base);
 }
 
@@ -314,10 +314,10 @@ input:focus {
     padding: 20px 24px;
   }
   .operator-card {
-    padding: 14px 16px; /* 데스크톱 14-16px로 대폭 축소 */
+    padding: 14px 16px; /* Significantly reduced to 14-16px for desktop */
   }
   .operator-card.p-large {
-    padding: 20px 24px; /* 대형 여백도 축소 */
+    padding: 20px 24px; /* Reduced large margins as well */
   }
 }
 
@@ -379,7 +379,7 @@ input:focus {
 .app-container {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 20px 48px; /* 바깥 여백 절반으로 축소 */
+  padding: 24px 20px 48px; /* Reduced outer margins by half */
 }
 
 /* --- Skeleton Loading --- */
@@ -407,7 +407,7 @@ input:focus {
   }
 
   .app-container {
-    padding: 16px 12px 32px; /* 모바일 바깥 여백 축소 */
+    padding: 16px 12px 32px; /* Reduced outer margins for mobile */
   }
 
   .app-container header {

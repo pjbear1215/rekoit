@@ -190,7 +190,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       };
 
       try {
-        send("status", { message: "페어링 준비 중..." });
+        send("status", { message: "Preparing for pairing..." });
 
         const env = { ...process.env, SSHPASS: session.password, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin` };
 
@@ -272,19 +272,19 @@ export async function GET(request: NextRequest): Promise<Response> {
               send("log", { line: `INFO: ${msg}` });
               
               // Map specific logs to user-friendly status messages
-              if (msg.includes("정리")) send("status", { message: "시스템 환경 정리 중..." });
-              if (msg.includes("기존 기기 정보")) send("status", { message: "기존 연결 정보 삭제 중..." });
-              if (msg.includes("인터랙티브 블루투스")) send("status", { message: "페어링 에이전트 실행 중..." });
-              if (msg.includes("기기 검색")) send("status", { message: "기기를 찾는 중입니다..." });
-              if (msg.includes("페어링 응답 대기")) send("status", { message: "키보드 응답을 기다리는 중..." });
-              if (msg.includes("성공")) send("status", { message: "연결 성공! 마무리 중..." });
+              if (msg.includes("Cleaning up")) send("status", { message: "Cleaning up system environment..." });
+              if (msg.includes("Deleting existing connection")) send("status", { message: "Deleting existing connection info..." });
+              if (msg.includes("interactive Bluetooth agent")) send("status", { message: "Running pairing agent..." });
+              if (msg.includes("Searching for device")) send("status", { message: "Searching for device..." });
+              if (msg.includes("Waiting for pairing response")) send("status", { message: "Waiting for keyboard response..." });
+              if (msg.includes("successful")) send("status", { message: "Connection successful! Wrapping up..." });
               
               continue;
             }
 
             // High-level progress logs
             if (stripped.includes("INTERACTIVE_START")) {
-              send("log", { line: "--- 인터랙티브 페어링 세션 시작 ---" });
+              send("log", { line: "--- Starting interactive pairing session ---" });
             } else if (stripped.startsWith("CMD>")) {
               const cmd = stripped.replace("CMD>", "").trim();
               send("log", { line: `EXEC: bluetoothctl ${cmd}` });
@@ -304,16 +304,16 @@ export async function GET(request: NextRequest): Promise<Response> {
 
             if (!pairResultSent && stripped.includes("DEVICE_NOT_FOUND")) {
               pairResultSent = true;
-              const msg = `기기(${address})를 찾을 수 없습니다. 키보드가 여전히 페어링 모드인지 확인하세요.`;
+              const msg = `Device (${address}) not found. Ensure your keyboard is still in pairing mode.`;
               send("log", { line: `ERROR: ${msg}` });
               send("paired", { success: false });
             }
 
             if (stripped.includes("Attempting to pair")) {
               pairStarted = true;
-              send("log", { line: "INFO: 페어링 절차 시작..." });
+              send("log", { line: "INFO: Starting pairing procedure..." });
               send("waiting_passkey", {
-                message: "페어링 요청 중...",
+                message: "Requesting pairing...",
               });
             }
 
@@ -321,24 +321,24 @@ export async function GET(request: NextRequest): Promise<Response> {
               const pairedAddress = stripped.replace("PAIRED_ADDR:", "").trim();
               if (pairedAddress) {
                 resolvedAddress = pairedAddress;
-                send("log", { line: `INFO: 대상 주소 확정 (${resolvedAddress})` });
+                send("log", { line: `INFO: Target address confirmed (${resolvedAddress})` });
               }
             }
 
-            // 패스키 감지
+            // Passkey detection
             if (!passkeySent) {
               const displayedPasskey = extractDisplayedPasskey(stripped);
               if (displayedPasskey) {
                 passkeySent = true;
-                send("log", { line: `PASSKEY: ${displayedPasskey} 생성됨` });
+                send("log", { line: `PASSKEY: ${displayedPasskey} generated` });
                 send("passkey", {
                   passkey: displayedPasskey,
-                  message: `키보드에서 ${displayedPasskey} 을 입력하고 Enter를 누르세요`,
+                  message: `Type ${displayedPasskey} on your keyboard and press Enter`,
                 });
               }
             }
 
-            // 페어링 성공
+            // Pairing success
             if (!pairResultSent) {
               if (
                 stripped.includes("PAIR_SUCCESS") ||
@@ -348,17 +348,17 @@ export async function GET(request: NextRequest): Promise<Response> {
                 persistPowerOnAfterProcess = true;
                 void (async () => {
                   const irk = await extractBluetoothIrk(session, resolvedAddress);
-                  if (irk) send("log", { line: "INFO: IRK 추출 완료" });
+                  if (irk) send("log", { line: "INFO: IRK extraction complete" });
                   await persistBluetoothDeviceDetails(session, resolvedAddress, name, irk);
                 })();
-                send("log", { line: "SUCCESS: 페어링 및 연결 성공" });
+                send("log", { line: "SUCCESS: Pairing and connection successful" });
                 send("paired", { success: true, address: resolvedAddress });
               } else if (stripped.includes("PAIR_PARTIAL")) {
-                send("log", { line: "WARN: 페어링은 되었으나 연결이 불완전합니다. 다시 시도하거나 키보드를 깨워보세요." });
+                send("log", { line: "WARN: Paired but connection is incomplete. Try again or wake your keyboard." });
               }
             }
 
-            // 페어링 실패 판단 (좀 더 보수적으로 변경)
+            // Pairing failure judgment (changed to be more conservative)
             if (!pairResultSent && pairStarted) {
               if (
                 stripped.includes("PAIR_FAILED") ||
@@ -366,14 +366,14 @@ export async function GET(request: NextRequest): Promise<Response> {
                 stripped.includes("Authentication Failed") ||
                 stripped.includes("Authentication Rejected") ||
                 stripped.includes("AuthenticationCanceled")
-                // 'Paired: no'는 제외 (대기 중인 상태일 수 있음)
+                // 'Paired: no' is excluded (may be in a waiting state)
               ) {
                 pairResultSent = true;
-                let failMsg = "페어링 실패";
-                if (stripped.includes("Authentication Failed")) failMsg = "인증 실패 (패스키 오입력 가능성)";
-                if (stripped.includes("Authentication Rejected")) failMsg = "기기에서 페어링 거절됨";
-                if (stripped.includes("AuthenticationCanceled")) failMsg = "페어링 취소됨";
-                
+                let failMsg = "Pairing failed";
+                if (stripped.includes("Authentication Failed")) failMsg = "Authentication failed (potential passkey entry error)";
+                if (stripped.includes("Authentication Rejected")) failMsg = "Pairing rejected by device";
+                if (stripped.includes("AuthenticationCanceled")) failMsg = "Pairing cancelled";
+
                 send("log", { line: `ERROR: ${failMsg}` });
                 send("paired", { success: false });
               }
@@ -553,7 +553,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           const journalIssue = classifyBluetoothJournalIssue(journalOutput);
           if (journalIssue === "hog_accept_failed") {
             send("error", {
-              message: "선택한 프로파일이 입력 프로파일 수락에 실패했습니다. 같은 키보드의 다른 블루투스 프로파일을 시도하세요.",
+              message: "The selected profile failed to accept the input profile. Try a different Bluetooth profile on the same keyboard.",
             });
           }
         }
@@ -573,7 +573,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       send("error", { message: msg });
     } finally {
       closed = true;
-      // 페어링 프로세스 종료 시 센티넬 파일 삭제 및 서비스 시작 보장
+      // Ensure sentinel file deletion and service start upon pairing process termination
       const cleanupCmd = `
         rm -f /tmp/rekoit-setup-active /tmp/rekoit-pair-*.sh
         ${buildBluetoothCleanupScript()}

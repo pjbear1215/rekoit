@@ -1,4 +1,4 @@
-// 상태 점검 항목 컴포넌트 (원형 아이콘 배경 + 구분 간격)
+// Status check item component (circular icon background + spacing)
 interface StatusCheckProps {
   label: string;
   status: "pending" | "checking" | "pass" | "fail";
@@ -19,7 +19,7 @@ export default function StatusCheck({
         transition: "background-color var(--transition-fast)",
       }}
     >
-      {/* 원형 아이콘 배경 */}
+      {/* Circular icon background */}
       <div className="flex-shrink-0 flex items-center justify-center">
         {status === "pending" && (
           <div

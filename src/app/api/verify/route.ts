@@ -22,18 +22,18 @@ interface CheckResult {
 
 const CHECKS: CheckDefinition[] = [
   {
-    name: "한글 폰트",
+    name: "Korean Font",
     command:
       "[ -d /home/root/.local/share/fonts/rekoit ] && echo OK || echo FAIL",
     requires: "hangul",
   },
   {
-    name: "한글 입력 데몬",
+    name: "Input Daemon",
     command: "systemctl is-active hangul-daemon 2>/dev/null || echo FAIL",
     requires: "hangul",
   },
   {
-    name: "블루투스",
+    name: "Bluetooth",
     command:
       `
         BTNXP_UART_OK=no
@@ -42,7 +42,7 @@ const CHECKS: CheckDefinition[] = [
         FAST_CONNECTABLE_OK=no
         WAKE_RECONNECT_OK=no
         [ -f /etc/modules-load.d/btnxpuart.conf ] && BTNXP_UART_OK=yes
-        # ConditionPathIsDirectory 라인이 주석처리(#) 되어있으면 OK
+        # OK if ConditionPathIsDirectory line is commented out (#)
         if ! grep -q "^ConditionPathIsDirectory" /usr/lib/systemd/system/bluetooth.service 2>/dev/null; then
           BOOT_FIX_OK=yes
         fi
@@ -93,7 +93,7 @@ async function waitForSsh(ip: string, password: string, maxAttempts = 6): Promis
     try {
       const result = await runSshCheck(ip, password, "echo OK");
       if (result === "OK") return true;
-    } catch { /* 연결 실패 — 재시도 */ }
+    } catch { /* Connection failed — retrying */ }
     await new Promise((r) => setTimeout(r, 3000));
   }
   return false;
@@ -110,11 +110,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // SSH 연결 대기 (설치 직후 xochitl/swupdate 재시작으로 USB 네트워크 일시 끊김)
+  // Wait for SSH connection (USB network may drop temporarily after xochitl/swupdate restart)
   const sshReady = await waitForSsh(ip, password);
   if (!sshReady) {
     return NextResponse.json({
-      results: [{ name: "SSH 연결", pass: false, detail: "기기에 연결할 수 없습니다" }],
+      results: [{ name: "SSH Connection", pass: false, detail: "Unable to connect to device" }],
     });
   }
 
@@ -128,12 +128,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   for (const check of activeChecks) {
     let output = "FAIL";
-    // 실패 시 1회 재시도 (일시적 SSH 끊김 대응)
+    // Retry once on failure (to handle temporary SSH drops)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         output = await runSshCheck(ip, password, check.command);
         if (output.endsWith("OK") || output === "active") break;
-      } catch { /* 재시도 */ }
+      } catch { /* Retrying */ }
       if (attempt === 0) await new Promise((r) => setTimeout(r, 2000));
     }
 

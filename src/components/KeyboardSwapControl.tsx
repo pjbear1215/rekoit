@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import Button from "@/components/Button";
 import TerminalOutput from "@/components/TerminalOutput";
 import { useSetup } from "@/lib/store";
+import { useTranslation } from "@/lib/i18n";
 
 interface KeyboardSwapControlProps {
   ip: string;
@@ -15,6 +16,7 @@ export default function KeyboardSwapControl({
   ip,
   password,
 }: KeyboardSwapControlProps) {
+  const { t } = useTranslation();
   const { state, setState: setSetupState } = useSetup();
   const [loading, setLoading] = useState(false);
   const [savingAction, setSavingAction] = useState<"on" | "off" | null>(null);
@@ -35,7 +37,7 @@ export default function KeyboardSwapControl({
 
     setLoading(true);
     const silent = options?.silent ?? false;
-    if (!silent) addLog("키보드 설정 읽는 중...");
+    if (!silent) addLog(t('manage.keyboard.reading'));
 
     try {
       const res = await fetch("/api/manage/keyboard-settings", {
@@ -52,16 +54,16 @@ export default function KeyboardSwapControl({
         const nextValue = Boolean(data.swapLeftCtrlCapsLock);
         setSwapLeftCtrlCapsLock(nextValue);
         setSetupState({ swapLeftCtrlCapsLock: nextValue });
-        if (!silent) addLog(`설정 확인 완료: 현재 ${nextValue ? "켜짐" : "꺼짐"}`);
+        if (!silent) addLog(t('manage.keyboard.verified', { status: nextValue ? t('bluetooth.power.on') : t('bluetooth.power.off') }));
       } else {
-        if (!silent) addLog(`ERROR: 설정 읽기 실패: ${data.error ?? "알 수 없는 오류"}`);
+        if (!silent) addLog(`${t('common.error')}: ${data.error ?? t('common.error')}`);
       }
     } catch (e) {
-      if (!silent) addLog(`ERROR: 서버 오류: ${e instanceof Error ? e.message : "알 수 없음"}`);
+      if (!silent) addLog(`${t('common.error')}: ${e instanceof Error ? e.message : t('common.error')}`);
     } finally {
       setLoading(false);
     }
-  }, [ip, password, setSetupState, addLog]);
+  }, [ip, password, setSetupState, addLog, t]);
 
   useEffect(() => {
     void loadKeyboardSettings();
@@ -69,7 +71,7 @@ export default function KeyboardSwapControl({
 
   const applySwapSetting = async (nextValue: boolean) => {
     setSavingAction(nextValue ? "on" : "off");
-    addLog(`키보드 레이아웃 변경 시도 (${nextValue ? "켜기" : "끄기"})...`);
+    addLog(t('manage.keyboard.changing', { status: nextValue ? t('bluetooth.power.on') : t('bluetooth.power.off') }));
     try {
       const res = await fetch("/api/manage/keyboard-settings", {
         method: "POST",
@@ -85,15 +87,16 @@ export default function KeyboardSwapControl({
       if (data.success) {
         setSwapLeftCtrlCapsLock(nextValue);
         setSetupState({ swapLeftCtrlCapsLock: nextValue });
+        const statusStr = nextValue ? t('manage.keyboard.enabled') : t('manage.keyboard.disabled');
         const msg = data.restarted
-          ? `OK: ${nextValue ? "활성화" : "비활성화"}됨 (데몬 재시작 완료)`
-          : `OK: ${nextValue ? "활성화" : "비활성화"}됨 (다음 시작부터 적용)`;
+          ? `OK: ${statusStr} (${t('manage.keyboard.restarted')})`
+          : `OK: ${statusStr} (${t('manage.keyboard.nextStart')})`;
         addLog(msg);
       } else {
-        addLog(`FAIL: 설정 변경 실패: ${data.error ?? "알 수 없는 오류"}`);
+        addLog(`FAIL: ${data.error ?? t('common.error')}`);
       }
     } catch (e) {
-      addLog(`ERROR: 서버 오류: ${e instanceof Error ? e.message : "알 수 없음"}`);
+      addLog(`${t('common.error')}: ${e instanceof Error ? e.message : t('common.error')}`);
     } finally {
       setSavingAction(null);
     }
@@ -106,10 +109,10 @@ export default function KeyboardSwapControl({
       >
         <div>
           <p className="text-[16px] font-bold text-black">
-            왼쪽 CapsLock과 왼쪽 Ctrl 위치 바꾸기
+            {t('manage.keyboardTitle')}
           </p>
           <p className="text-[13px] font-medium opacity-50 mt-0.5">
-            켜면 왼쪽 CapsLock은 Ctrl처럼, 왼쪽 Ctrl은 CapsLock처럼 동작합니다.
+            {t('manage.keyboardDesc')}
           </p>
         </div>
         <div className="flex gap-3">
@@ -122,7 +125,7 @@ export default function KeyboardSwapControl({
             aria-pressed={swapLeftCtrlCapsLock}
             className="font-bold"
           >
-            켜기
+            {t('bluetooth.power.on')}
           </Button>
           <Button
             variant={swapLeftCtrlCapsLock ? "ghost" : "primary"}
@@ -133,20 +136,20 @@ export default function KeyboardSwapControl({
             aria-pressed={!swapLeftCtrlCapsLock}
             className="font-bold"
           >
-            끄기
+            {t('bluetooth.power.off')}
           </Button>
         </div>
       </div>
 
       <TerminalOutput
         lines={logs}
-        title="Keyboard Layout Log"
+        title={t('manage.keyboardLog')}
         initiallyOpen={false}
         maxHeight="180px"
         showDownload={logs.length > 0}
         onDownload={() => {
           const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-          const content = `=== REKOIT 키보드 설정 로그 ===\n${logs.join("\n")}`;
+          const content = `=== REKOIT Keyboard Settings Log ===\n${logs.join("\n")}`;
           const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");

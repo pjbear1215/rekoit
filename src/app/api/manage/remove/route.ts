@@ -89,7 +89,7 @@ async function detect(ip: string, password: string): Promise<{ hangul: boolean; 
 async function removeBt(ip: string, password: string, otherStillInstalled: boolean): Promise<string[]> {
   const logs: string[] = [];
 
-  // 재연결 보조 서비스만 먼저 중지하고 bluetooth.service는 cleanup 뒤에 내린다.
+  // Stop reconnection helper services first; bluetooth.service will be stopped after cleanup.
   await runSsh(ip, password, `
     systemctl stop rekoit-bt-agent.service 2>/dev/null || true
     systemctl disable rekoit-bt-agent.service 2>/dev/null || true
@@ -99,14 +99,14 @@ async function removeBt(ip: string, password: string, otherStillInstalled: boole
     systemctl disable rekoit-factory-guard.service 2>/dev/null || true
     systemctl daemon-reload
   `);
-  logs.push("OK: 블루투스 보조 서비스 중지");
+  logs.push("OK: Bluetooth helper services stopped");
 
   const btCleanupResult = await runSsh(ip, password, buildBluetoothKeyboardCleanupScript());
   const removedCountMatch = btCleanupResult.match(/BT_KEYBOARD_REMOVED_COUNT=(\d+)/);
   const removedCount = removedCountMatch ? Number.parseInt(removedCountMatch[1], 10) : 0;
-  logs.push(`OK: 블루투스 키보드 페어링 정리 (${removedCount}개)`);
+  logs.push(`OK: Bluetooth keyboard pairings cleaned up (${removedCount} devices)`);
 
-  // BT 전용 흔적만 원복
+  // Revert only BT-specific traces
   const result = await runSsh(ip, password, `
     mount -o remount,rw / || { echo "FAIL:remount"; exit 0; }
     rm -f /etc/modules-load.d/btnxpuart.conf
@@ -135,9 +135,9 @@ async function removeBt(ip: string, password: string, otherStillInstalled: boole
     echo "BT_REMOVE_OK"
   `);
   if (result.includes("FAIL:remount")) {
-    logs.push("WARNING: rootfs remount 실패");
+    logs.push("WARNING: rootfs remount failed");
   } else {
-    logs.push("OK: 블루투스 런타임 설정 원복");
+    logs.push("OK: Bluetooth runtime settings reverted");
   }
 
   await runSsh(ip, password, `
@@ -149,7 +149,7 @@ async function removeBt(ip: string, password: string, otherStillInstalled: boole
     rm -f /home/root/rekoit/rekoit-bt-wake-reconnect.service
     find /home/root/rekoit -type d -empty -delete 2>/dev/null || true
   `);
-  logs.push("OK: REKOIT 블루투스 관련 파일 정리");
+  logs.push("OK: REKOIT Bluetooth-related files cleaned up");
 
   if (!otherStillInstalled) {
     await runSsh(ip, password, `
@@ -160,14 +160,14 @@ async function removeBt(ip: string, password: string, otherStillInstalled: boole
       rm -f /etc/systemd/system/multi-user.target.wants/rekoit-bt-agent.service
       rm -f /etc/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service
       rm -f /etc/swupdate/conf.d/99-rekoit-postupdate
-    `);
-    logs.push("OK: BT-only REKOIT 공통 복구 경로 제거");
-  }
+    logs.push("OK: BT-only REKOIT common recovery paths removed");
+    }
 
-  // 비활성 파티션 정리
-  await runSsh(ip, password, `
+    // Inactive partition cleanup
+    await runSsh(ip, password, `
     CURRENT=$(mount | grep ' / ' | head -n 1 | awk '{print $1}')
     case "$CURRENT" in
+    ...
       /dev/mmcblk0p2) INACTIVE=/dev/mmcblk0p3 ;;
       /dev/mmcblk0p3) INACTIVE=/dev/mmcblk0p2 ;;
       *) INACTIVE="" ;;
@@ -199,7 +199,7 @@ async function removeBt(ip: string, password: string, otherStillInstalled: boole
       umount /mnt/inactive 2>/dev/null || true
     fi
   `);
-  logs.push("OK: 비활성 파티션 BT 흔적 제거");
+  logs.push("OK: Inactive partition BT traces removed");
 
   if (!otherStillInstalled) {
     await cleanupCommon(ip, password, logs);
@@ -211,17 +211,17 @@ async function removeBt(ip: string, password: string, otherStillInstalled: boole
   await runSsh(ip, password, `
     systemctl stop bluetooth.service 2>/dev/null || true
   `);
-  logs.push("OK: bluetooth.service 최종 종료");
+  logs.push("OK: bluetooth.service final shutdown");
 
   return logs;
 }
-
 async function removeHangul(ip: string, password: string, otherStillInstalled: boolean): Promise<string[]> {
   const logs: string[] = [];
 
-  // 1. 모든 관련 서비스 중지 및 비활성화 (하나의 세션)
+  // 1. Stop and disable all related services (single session)
   await runSsh(ip, password, `
     systemctl stop xochitl 2>/dev/null || true
+...
     systemctl stop hangul-daemon 2>/dev/null || true
     systemctl disable hangul-daemon 2>/dev/null || true
     ${otherStillInstalled ? "" : `
@@ -232,9 +232,9 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
     `}
     systemctl daemon-reload
   `);
-  logs.push("OK: 한글 입력 런타임 서비스 중지 및 비활성화");
+  logs.push("OK: Input Engine runtime services stopped and disabled");
 
-  // 2. remount + rootfs 파일 제거 (하나의 세션)
+  // 2. remount + rootfs file removal (single session)
   const mainResult = await runSsh(ip, password, `
     RESULTS=""
     mount -o remount,rw / || { echo "FAIL:remount"; exit 0; }
@@ -242,22 +242,22 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
     LIBEPAPER="/usr/lib/plugins/platforms/libepaper.so"
     LIBEPAPER_TMPFS="/dev/shm/hangul-libepaper.so"
     
-    # 직접적인 bind mount 해제 (루프)
+    # Direct bind mount unmount (loop)
     while grep -q " $LIBEPAPER " /proc/mounts 2>/dev/null; do
       umount -l "$LIBEPAPER" 2>/dev/null || umount "$LIBEPAPER" 2>/dev/null || break
       sleep 0.5
     done
-    # tmpfs 소스 기반의 모든 마운트 지점 해제 (루프)
+    # Unmount all mount points based on tmpfs source (loop)
     while mount | grep -q "$LIBEPAPER_TMPFS"; do
       TARGET=$(mount | awk -v src="$LIBEPAPER_TMPFS" '$1==src {print $3; exit}')
       [ -n "$TARGET" ] || break
       umount -l "$TARGET" 2>/dev/null || umount "$TARGET" 2>/dev/null || break
       sleep 0.5
     done
-    // libepaper 원본 복원 (마운트 해제만으로 충분)
+    // Restore libepaper original (unmounting is enough)
     rm -f "$LIBEPAPER_TMPFS"
 
-    # 서비스 파일 제거
+    # Remove service files
     rm -f /etc/systemd/system/hangul-daemon.service
     rm -f /etc/systemd/system/multi-user.target.wants/hangul-daemon.service
     ${otherStillInstalled ? "" : `
@@ -267,11 +267,11 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
     rm -f /etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service
     `}
 
-    # 폰트 보존 (삭제하지 않음)
+    # Preserve fonts (do not delete)
     # rm -f /usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf
     # fc-cache -f 2>/dev/null || true
 
-    # factory-guard, swupdate hook 제거
+    # factory-guard, swupdate hook removal
     ${otherStillInstalled ? "" : `
     rm -f /etc/swupdate/conf.d/99-rekoit-postupdate
     rm -f /opt/rekoit/factory-guard.sh
@@ -279,7 +279,7 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
     `}
 
     ${otherStillInstalled ? "" : `
-    # bluetooth 원복
+    # Revert bluetooth
     sed -i 's|^##*ConditionPathIsDirectory=/sys/class/bluetooth|ConditionPathIsDirectory=/sys/class/bluetooth|' /usr/lib/systemd/system/bluetooth.service 2>/dev/null || true
     sed -i '/^Privacy = off$/d' /etc/bluetooth/main.conf 2>/dev/null || true
     sed -i '/^FastConnectable = true$/d' /etc/bluetooth/main.conf 2>/dev/null || true
@@ -298,10 +298,10 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
   `);
 
   if (mainResult.includes("FAIL:remount")) {
-    logs.push("ERROR: rootfs remount 실패 — 제거 불가");
+    logs.push("ERROR: rootfs remount failed — cannot remove");
     return logs;
   }
-  logs.push(`OK: 한글 입력 런타임, libepaper 정리 (폰트 보존)${otherStillInstalled ? "" : ", REKOIT guard 제거"}`);
+  logs.push(`OK: Input Engine runtime and libepaper cleaned up (fonts preserved)${otherStillInstalled ? "" : ", REKOIT guard removed"}`);
 
   await runSsh(ip, password, `
     rm -f /home/root/rekoit/install-hangul.sh
@@ -309,15 +309,15 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
     rm -f /home/root/rekoit/post-update-hangul.sh
     rm -f /home/root/rekoit/hangul-daemon
     rm -f /home/root/rekoit/hangul-daemon.service
-    # 폰트는 지우지 않고 유지합니다.
+    # Fonts are preserved and not deleted.
     rm -f /home/root/rekoit/backup/libepaper.so.original
     rm -f /home/root/rekoit/backup/libepaper.so.latest
     rm -f /home/root/rekoit/backup/font_existed
     find /home/root/rekoit -type d -empty -delete 2>/dev/null || true
   `);
-  logs.push("OK: REKOIT 한글 입력 관련 파일 정리 (폰트 유지)");
+  logs.push("OK: REKOIT Input Engine related files cleaned up (fonts preserved)");
 
-  // 3. 비활성 파티션 정리
+  // 3. Inactive partition cleanup
   await runSsh(ip, password, `
     CURRENT=$(mount | grep ' / ' | head -n 1 | awk '{print $1}')
     case "$CURRENT" in
@@ -333,7 +333,7 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
         rm -f /mnt/inactive/opt/rekoit/factory-guard.sh
         rmdir /mnt/inactive/opt/rekoit 2>/dev/null || true
         `}
-        # 비활성 파티션의 폰트도 유지합니다.
+        # Also preserve fonts on the inactive partition.
         ${otherStillInstalled ? "" : `rm -f /mnt/inactive/etc/swupdate/conf.d/99-rekoit-postupdate`}
         rm -f /mnt/inactive/etc/systemd/system/hangul-daemon.service
         rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/hangul-daemon.service
@@ -353,27 +353,27 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
       umount /mnt/inactive 2>/dev/null || true
     fi
   `);
-  logs.push("OK: 비활성 파티션 한글 입력 런타임 흔적 정리");
+  logs.push("OK: Inactive partition Input Engine runtime traces cleaned up");
 
-  // 4. BT도 없으면 공통 파일도 정리
+  // 4. If BT is also missing, clean up common files as well
   if (!otherStillInstalled) {
     await cleanupCommon(ip, password, logs);
   }
 
-  // 5. daemon-reload + xochitl 재시작
+  // 5. daemon-reload + restart xochitl
   await runSsh(ip, password, "systemctl daemon-reload && systemctl restart xochitl 2>/dev/null || true");
-  logs.push("OK: xochitl 재시작");
+  logs.push("OK: xochitl restarted");
 
   if (!otherStillInstalled) {
     await runSsh(ip, password, `
       systemctl stop bluetooth.service 2>/dev/null || true
     `);
-    logs.push("OK: bluetooth.service 종료");
+    logs.push("OK: bluetooth.service stopped");
   } else {
-    logs.push("OK: 블루투스 런타임 유지");
+    logs.push("OK: Bluetooth runtime preserved");
   }
 
-  // 6. 최종 검증
+  // 6. Final verification
   const verify = await runSsh(ip, password, `
     FAIL=""
     [ -f /usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf ] && FAIL="$FAIL font_exists"
@@ -396,25 +396,25 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
   `);
   const verifyTrimmed = verify.trim();
   if (verifyTrimmed === "VERIFY_OK") {
-    logs.push("OK: 제거 검증 완료");
+    logs.push("OK: Removal verified");
   } else {
-    logs.push(`WARNING: 일부 항목 미제거 — ${verifyTrimmed}`);
+    logs.push(`WARNING: Some items were not removed — ${verifyTrimmed}`);
   }
 
   return logs;
 }
 
 async function cleanupCommon(ip: string, password: string, logs: string[]): Promise<void> {
-  // .bashrc 정리
-  logs.push("OK: 로그인 REKOIT 자동복구 스크립트 제거");
+  // .bashrc cleanup
+  logs.push("OK: Login REKOIT auto-recovery script removed");
 
-  // REKOIT 디렉토리 전체 제거
+  // Complete removal of REKOIT directory
   await runSsh(ip, password, `
     find /home/root/rekoit -type f -delete 2>/dev/null || true
     find /home/root/rekoit -type d -empty -delete 2>/dev/null || true
     rm -rf /home/root/rekoit 2>/dev/null || true
   `);
-  logs.push("OK: REKOIT 디렉토리 전체 제거");
+  logs.push("OK: REKOIT directory completely removed");
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -423,7 +423,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { ip, password, target } = body as { ip: string; password: string; target: string };
 
     if (!ip || !password || !target) {
-      return NextResponse.json({ success: false, error: "ip, password, target 필수" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "ip, password, and target are required" }, { status: 400 });
     }
 
     if (!/^[\d.]+$/.test(ip)) {
@@ -433,18 +433,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const normalizedTarget = target === "onscreen" ? "hangul" : target;
 
     if (normalizedTarget !== "bt" && normalizedTarget !== "hangul" && normalizedTarget !== "font") {
-      return NextResponse.json({ success: false, error: "target은 bt, hangul 또는 font" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "target must be bt, hangul, or font" }, { status: 400 });
     }
 
-    // 현재 설치 상태 감지
+    // Detect current installation state
     const detected = await detect(ip, password);
 
     if (normalizedTarget === "bt" && !detected.bt) {
-      return NextResponse.json({ success: false, error: "제거할 블루투스 설치가 감지되지 않습니다" });
+      return NextResponse.json({ success: false, error: "Bluetooth installation to remove not detected" });
     }
 
     if (normalizedTarget === "hangul" && !detected.hangul) {
-      return NextResponse.json({ success: false, error: "제거할 한글 입력 구성 요소가 감지되지 않습니다" });
+      return NextResponse.json({ success: false, error: "Input Engine components to remove not detected" });
     }
 
     let logs: string[] = [];
@@ -466,15 +466,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 async function removeOnlyFont(ip: string, password: string): Promise<string[]> {
   const logs: string[] = [];
   await runSsh(ip, password, `
-    # 신 경로 삭제 (사용자 데이터 영역)
+    # Delete new path (user data area)
     rm -rf /home/root/.local/share/fonts/rekoit 2>/dev/null || true
     
-    # 구 경로 삭제 (시스템 영역 - 기존 사용자 대응)
+    # Delete old path (system area - legacy user support)
     rm -f /usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf 2>/dev/null || true
     
     fc-cache -f 2>/dev/null || true
   `);
-  logs.push("OK: 한글 폰트 정리 완료 (구/신 경로 모두 확인)");
-  logs.push("OK: 폰트 캐시 갱신 완료");
+  logs.push("OK: Korean fonts cleaned up (checked both old and new paths)");
+  logs.push("OK: Font cache updated");
   return logs;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 interface ErrorReportProps {
   errors: string[];
@@ -11,23 +12,26 @@ interface ErrorReportProps {
 export default function ErrorReport({
   errors,
   allLogs,
-  context = "설치",
+  context,
 }: ErrorReportProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  // 복사 버튼 스케일 애니메이션용
+  // For copy button scale animation
   const [justCopied, setJustCopied] = useState(false);
+
+  const displayContext = context || t('common.error');
 
   const buildReport = useCallback((): string => {
     const timestamp = new Date().toISOString();
-    const header = `=== ${context} 오류 리포트 ===`;
-    const meta = `시간: ${timestamp}\n오류 수: ${errors.length}`;
+    const header = `=== ${displayContext} Error Report ===`;
+    const meta = `Time: ${timestamp}\nErrors: ${errors.length}`;
     const errorSection = errors.length > 0
-      ? `\n--- 오류 ---\n${errors.join("\n")}`
+      ? `\n--- ERRORS ---\n${errors.join("\n")}`
       : "";
-    const logSection = `\n--- 전체 로그 ---\n${allLogs.join("\n")}`;
+    const logSection = `\n--- COMPLETE LOGS ---\n${allLogs.join("\n")}`;
     return `${header}\n${meta}${errorSection}${logSection}`;
-  }, [errors, allLogs, context]);
+  }, [errors, allLogs, displayContext]);
 
   const handleCopy = async (): Promise<void> => {
     try {
@@ -71,7 +75,7 @@ export default function ErrorReport({
         }}
       >
         <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
-          오류 상세 ({errors.length}건)
+          {t('components.errorReport.title', { count: errors.length })}
         </span>
         <svg
           width="14"
@@ -92,7 +96,7 @@ export default function ErrorReport({
         </svg>
       </button>
 
-      {/* 부드러운 max-height 트랜지션으로 펼침/접힘 */}
+      {/* Smooth max-height transition for expansion/collapse */}
       <div
         style={{
           maxHeight: expanded ? "500px" : "0px",
@@ -136,7 +140,7 @@ export default function ErrorReport({
               transition: "all 150ms cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
-            {copied ? "복사됨" : "리포트 복사"}
+            {copied ? t('components.errorReport.copied') : t('components.errorReport.copyReport')}
           </button>
         </div>
       </div>

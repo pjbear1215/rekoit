@@ -53,18 +53,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!ip || !password || !address) {
     return NextResponse.json(
-      { error: "ip, password, address 필수" },
+      { error: "ip, password, and address are required" },
       { status: 400 },
     );
   }
 
   if (!/^[\d.]+$/.test(ip)) {
-    return NextResponse.json({ error: "잘못된 IP 형식" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid IP format" }, { status: 400 });
   }
 
   if (!/^[0-9A-Fa-f:]+$/.test(address)) {
     return NextResponse.json(
-      { error: "잘못된 블루투스 주소" },
+      { error: "Invalid Bluetooth address" },
       { status: 400 },
     );
   }
@@ -77,7 +77,7 @@ sleep 1
 bluetoothctl untrust ${address} 2>/dev/null || true
 bluetoothctl remove ${address} 2>/dev/null || true
 
-# 시스템 데이터 디렉토리에서 IRK 등 모든 흔적 명시적 삭제
+# Explicitly delete all traces including IRK from system data directory
 rm -rf /var/lib/bluetooth/*/${address} 2>/dev/null || true
 
 if [ -f "$STATE_FILE" ] && grep -q '^BT_DEVICE_ADDRESS=${address}$' "$STATE_FILE" 2>/dev/null; then

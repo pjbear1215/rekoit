@@ -7,10 +7,12 @@ import Button from "@/components/Button";
 import Checkbox from "@/components/Checkbox";
 import { useSetup } from "@/lib/store";
 import { useGuard } from "@/lib/useGuard";
+import { useTranslation } from "@/lib/i18n";
 
 type EntryAction = "install-hangul" | "install-bt" | "manage";
 
 export default function EntryPage() {
+  const { t } = useTranslation();
   const allowed = useGuard();
   const router = useRouter();
   const { state, setState } = useSetup();
@@ -48,13 +50,13 @@ export default function EntryPage() {
           setSelectedAction(installed ? "manage" : "install-hangul");
         }
         if (!res.ok && data.error) {
-          setManageCheckError("설정 변경 가능 여부를 확인하지 못했습니다.");
+          setManageCheckError(t('entry.checkingManageError') || "Unable to verify if management is available.");
         }
       } catch {
         if (cancelled) return;
         setManageAvailable(false);
         setInstalledState({ hangul: false, bt: false });
-        setManageCheckError("설정 변경 가능 여부를 확인하지 못했습니다.");
+        setManageCheckError(t('entry.checkingManageError') || "Unable to verify if management is available.");
         if (!selectionTouchedRef.current) {
           setSelectedAction("install-hangul");
         }
@@ -70,7 +72,7 @@ export default function EntryPage() {
     return () => {
       cancelled = true;
     };
-  }, [allowed, state.ip, state.password]);
+  }, [allowed, state.ip, state.password, t]);
 
   if (!allowed) return null;
 
@@ -79,29 +81,29 @@ export default function EntryPage() {
   const actionCards = [
     {
       id: "install-hangul" as const,
-      title: installedState.hangul ? "한글 입력 엔진 재설치" : "한글 입력 엔진 설치",
-      description: "한글 입력 엔진을 설치합니다. 필요하면 블루투스 도우미도 함께 설치 가능합니다.",
+      title: installedState.hangul ? t('entry.installHangulReinstall') : t('entry.installHangulTitle'),
+      description: t('entry.installHangulDesc'),
       disabled: false,
     },
     {
       id: "install-bt" as const,
-      title: installedState.bt ? "블루투스 도우미 재설치" : "블루투스 도우미 설치",
-      description: "블루투스 도우미를 설치합니다. 한글 입력 엔진을 설치하지 않을 경우, 영문 입력만 가능합니다.",
+      title: installedState.bt ? t('entry.installBtReinstall') : t('entry.installBtTitle'),
+      description: t('entry.installBtDesc'),
       disabled: false,
     },
     {
       id: "manage" as const,
-      title: "기기 관리",
-      description: "다시 설치하지 않고 블루투스 재페어링, 전원 제어, 키보드 설정만 바꿉니다.",
+      title: t('entry.manageTitle'),
+      description: t('entry.manageDesc'),
       disabled: !canManage,
     },
   ];
 
   const nextLabel = selectedAction === "install-hangul"
-    ? "한글 입력 엔진 설치로"
+    ? t('entry.goInstallHangul')
     : selectedAction === "install-bt"
-      ? "블루투스 도우미 설치로"
-      : "기기 관리로";
+      ? t('entry.goInstallBt')
+      : t('entry.goManage');
 
   const handleNext = () => {
     if (selectedAction === "manage") {
@@ -128,13 +130,13 @@ export default function EntryPage() {
             className="text-[32px] font-bold tracking-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            작업 선택
+            {t('entry.title')}
           </h1>
           <p
             className="mt-2 text-[15px] font-medium"
             style={{ color: "var(--text-muted)" }}
           >
-            설치 또는 기기 관리를 시작하기 위해 작업을 선택하세요.
+            {t('entry.description')}
           </p>
         </div>
 
@@ -170,8 +172,8 @@ export default function EntryPage() {
                   <p className="text-[14px] mt-2" style={{ color: selected ? "rgba(255,255,255,0.8)" : "var(--text-muted)" }}>
                     {disabled
                       ? manageChecking
-                        ? "기기 관리 가능 여부를 확인하고 있습니다."
-                        : "이미 설치된 한글 입력 엔진 또는 블루투스 도우미가 있을 때만 사용할 수 있습니다."
+                        ? t('entry.checkingManage')
+                        : t('entry.manageDisabledHelp')
                       : action.description}
                   </p>
                 </button>
@@ -188,7 +190,7 @@ export default function EntryPage() {
 
         {isInstallAction && (
           <div className="space-y-6 stagger-2">
-            {/* 시스템 안내 카드 */}
+            {/* System Information Card */}
             <div
               className="rounded-none border-l-4 border-black"
               style={{
@@ -202,86 +204,86 @@ export default function EntryPage() {
               <div className="flex items-center gap-2 mb-6">
                 <span className="text-[18px]">⚠️</span>
                 <p className="text-[18px] font-bold" style={{ color: "#000000" }}>
-                  설치 전 확인
+                  {t('entry.checkBeforeInstall')}
                 </p>
               </div>
               
               <div className="space-y-6 text-[14.5px] leading-relaxed" style={{ color: "#333333" }}>
-                {/* 1. 시스템 안전성 및 보증 */}
+                {/* 1. System Safety & Warranty */}
                 <div>
-                  <p className="font-bold text-[15px] mb-2">1. 시스템 안전성 및 보증</p>
+                  <p className="font-bold text-[15px] mb-2">{t('entry.eula.section1Title')}</p>
                   <ul className="space-y-1.5 ml-1">
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>바이너리 변조 없음:</strong> 설치되는 모든 구성 요소는 기기의 핵심 실행 파일(xochitl) 및 시스템 라이브러리(libepaper.so 등)를 직접 수정하지 않습니다.</span>
+                      <span>{t('entry.eula.section1Item1')}</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>휘발성 맵핑 방식:</strong> 시스템 라이브러리 교체 시 tmpfs mount(메모리 오버레이) 방식을 사용합니다. 원본 파일은 그대로 보존되며, 수정된 정보는 메모리 상에만 임시로 존재하므로 시스템의 영구적인 변조가 없어 안전합니다.</span>
+                      <span>{t('entry.eula.section1Item2')}</span>
                     </li>
                   </ul>
                 </div>
 
-                {/* 2. 한글 입력 엔진 및 표시 지원 */}
+                {/* 2. Korean Input Engine & Display Support */}
                 <div>
-                  <p className="font-bold text-[15px] mb-2">2. 한글 입력 엔진 및 표시 지원</p>
+                  <p className="font-bold text-[15px] mb-2">{t('entry.eula.section2Title')}</p>
                   <ul className="space-y-1.5 ml-1">
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>실시간 입력 조합:</strong> 입력 신호를 중간에서 가로채 메모리 상에서 실시간으로 자모를 조합한 뒤 시스템에 전달하는 비파괴적 방식을 사용합니다.</span>
+                      <span>{t('entry.eula.section2Item1')}</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>시스템 전체 한글 표시:</strong> 시스템 폰트를 함께 구성하여 기기 화면에서 한글이 깨짐 없이 정상적으로 표시되도록 돕습니다.</span>
+                      <span>{t('entry.eula.section2Item2')}</span>
                     </li>
                   </ul>
                 </div>
 
-                {/* 3. 블루투스 도우미 */}
+                {/* 3. Bluetooth Helper */}
                 <div>
-                  <p className="font-bold text-[15px] mb-2">3. 블루투스 도우미</p>
+                  <p className="font-bold text-[15px] mb-2">{t('entry.eula.section3Title')}</p>
                   <ul className="space-y-1.5 ml-1">
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>지능형 자동 재연결:</strong> IRK(Identity Resolving Key) 추출 기술로 보안 등을 위해 주기적으로 주소가 바뀌는 최신 블루투스 4.0+ 키보드들을 정확하게 식별하고 자동으로 재연결합니다.</span>
+                      <span>{t('entry.eula.section3Item1')}</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>제로 소모 리소스 관리:</strong> 지수 백오프 로직을 사용하며, 특히 기기가 대기(Sleep) 모드일 때는 확인 작업을 완전히 중단하여 배터리 소모를 방지합니다.</span>
+                      <span>{t('entry.eula.section3Item2')}</span>
                     </li>
                   </ul>
                 </div>
 
-                {/* 4. 기기 호환성 및 권장 설치 */}
+                {/* 4. Compatibility & Recommendations */}
                 <div>
-                  <p className="font-bold text-[15px] mb-2">4. 기기 호환성 및 권장 설치</p>
+                  <p className="font-bold text-[15px] mb-2">{t('entry.eula.section4Title')}</p>
                   <ul className="space-y-1.5 ml-1">
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>검증된 환경:</strong> 공식 Type Folio와 대부분의 최신 블루투스 4.0+ 키보드에서 검증되었습니다. (구형 Classic 모델 미지원)</span>
+                      <span>{t('entry.eula.section4Item1')}</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>권장 옵션:</strong> Type Folio만 사용하신다면 '한글 입력 엔진'만 설치해도 충분합니다. 외장 키보드를 함께 사용하신다면 '블루투스 도우미'를 포함하여 설치하는 것을 권장합니다.</span>
+                      <span>{t('entry.eula.section4Item2')}</span>
                     </li>
                   </ul>
                 </div>
 
-                {/* 5. 사전 준비 및 복구 */}
+                {/* 5. Cleanup & Recovery */}
                 <div>
-                  <p className="font-bold text-[15px] mb-2">5. 사전 준비 및 복구</p>
+                  <p className="font-bold text-[15px] mb-2">{t('entry.eula.section5Title')}</p>
                   <ul className="space-y-1.5 ml-1">
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>기존 흔적 제거:</strong> 기존 <strong>ko-remark</strong> (by bncedgb-glitch) 프로젝트가 설치되어 있다면, <strong>해당 프로젝트의 원상복구 기능</strong>으로 초기화를 먼저 진행해야 합니다. (또는 기기의 팩토리 리셋 수행)</span>
+                      <span>{t('entry.eula.section5Item1')}</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>재설치 및 복구:</strong> rekoit 사용 중에는 원상복구 없이도 언제든 다시 설치하여 설정을 갱신하거나 손상된 환경을 복구할 수 있습니다.</span>
+                      <span>{t('entry.eula.section5Item2')}</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="shrink-0">•</span>
-                      <span><strong>완벽한 순정 상태 복구:</strong> '전체 원상복구' 기능을 통해 언제든지 설치 전의 순정 상태로 되돌릴 수 있습니다.</span>
+                      <span>{t('entry.eula.section5Item3')}</span>
                     </li>
                   </ul>
                 </div>
@@ -291,7 +293,7 @@ export default function EntryPage() {
             <Checkbox
               checked={eulaChecked}
               onChange={setEulaChecked}
-              label="상기 유의사항을 모두 숙지하였으며, 기기 변경 및 결과에 대한 책임이 사용자 본인에게 있음을 확인하고 동의합니다."
+              label={t('entry.eulaAgreed')}
             />
           </div>
         )}
@@ -302,7 +304,7 @@ export default function EntryPage() {
             onClick={() => router.push("/")}
             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>}
           >
-            처음으로
+            {t('common.first')}
           </Button>
           <Button
             onClick={handleNext}

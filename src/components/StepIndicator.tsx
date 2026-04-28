@@ -1,23 +1,34 @@
 "use client";
 
-// 단계 표시 도트-앤-라인 프로그레스 인디케이터
-const steps = ["시작", "준비", "연결", "선택", "설치", "BT", "완료"];
+import { useTranslation } from "@/lib/i18n";
 
 interface StepIndicatorProps {
   currentStep: number;
 }
 
 export default function StepIndicator({ currentStep }: StepIndicatorProps) {
+  const { t } = useTranslation();
+  
+  const steps = [
+    t('components.stepIndicator.start'),
+    t('components.stepIndicator.tools'),
+    t('components.stepIndicator.connect'),
+    t('components.stepIndicator.select'),
+    t('components.stepIndicator.install'),
+    t('components.stepIndicator.bt'),
+    t('components.stepIndicator.done')
+  ];
+
   return (
     <div className="flex items-center justify-between mb-6 px-2 relative">
-      {/* 연결선 배경 (전체) */}
+      {/* Connector line background (full) */}
       <div
         className="absolute top-[10px] left-0 right-0 h-[1.5px]"
         style={{
           backgroundColor: "#e0e0e0",
         }}
       />
-      {/* 연결선 진행 (완료 구간) */}
+      {/* Connector line progress (completed section) */}
       <div
         className="absolute top-[10px] left-0 h-[1.5px]"
         style={{
@@ -28,12 +39,12 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
       />
       {steps.map((label, i) => (
         <div
-          key={label}
+          key={i}
           className="flex flex-col items-center"
         >
-          {/* 도트 */}
+          {/* Dot */}
           {i < currentStep ? (
-            // 완료 단계: 검정색 원 + 흰색 체크
+            // Completed step: Black circle + White checkmark
             <div
               className="relative z-10"
               style={{
@@ -61,7 +72,7 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
               </svg>
             </div>
           ) : i === currentStep ? (
-            // 현재 단계: 검정색 테두리 원
+            // Current step: Black border circle
             <div
               className="relative z-10"
               style={{
@@ -74,7 +85,7 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
               }}
             />
           ) : (
-            // 미래 단계: 옅은 회색 작은 원
+            // Future step: Light gray small circle
             <div
               className="relative z-10"
               style={{
@@ -86,7 +97,7 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
               }}
             />
           )}
-          {/* 라벨 */}
+          {/* Label */}
           <span
             className="text-[12px] mt-2.5 font-bold uppercase tracking-widest"
             style={{

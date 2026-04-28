@@ -19,7 +19,7 @@ export function buildFontRemovalCommands({
   refreshCache = false,
 } = {}) {
   if (!deleteFont) {
-    return "# 폰트 유지";
+    return "# Preserve font";
   }
 
   const fontDirPath = `${prefix}${HANGUL_FONT_DIR}`;

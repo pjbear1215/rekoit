@@ -4,7 +4,7 @@ post_update_hangul() {
     if [ -f "$FONT_SRC" ]; then
         mkdir -p "$(dirname "$FONT_DST")"
         cp "$FONT_SRC" "$FONT_DST"
-        echo "[$(date)] OK: 한글 폰트" >> "$LOG"
+        echo "[$(date)] OK: Korean font" >> "$LOG"
     fi
 
     if [ -f "$BASEDIR/hangul-daemon.service" ]; then

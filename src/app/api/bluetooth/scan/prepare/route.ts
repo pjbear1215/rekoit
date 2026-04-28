@@ -8,24 +8,24 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const env = { ...process.env, SSHPASS: session.password, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin` };
   
-  // 하드웨어 준비만 수행하고 세션을 종료함 (정리 스크립트 실행 안 함)
+  // Perform only hardware preparation and terminate the session (cleanup script not executed)
   const prepCmd = `
-    # 1. 재연결 서비스 중단 및 센티넬 생성
+    # 1. Stop reconnection service and create sentinel
     systemctl stop rekoit-bt-wake-reconnect.service 2>/dev/null || true
     killall -9 bluetoothctl 2>/dev/null || true
     touch /tmp/rekoit-setup-active
     touch /tmp/rekoit-pair-SCAN.sh
     
-    # 2. 하드웨어 리셋
+    # 2. Hardware reset
     modprobe btnxpuart 2>/dev/null || true
     systemctl restart bluetooth.service 2>/dev/null || true
     sleep 3.5
     
-    # 3. 어댑터 활성화
+    # 3. Enable adapter
     bluetoothctl power on 2>/dev/null || true
     bluetoothctl pairable on 2>/dev/null || true
     
-    # 활성화 확인 루프
+    # Activation check loop
     COUNT=0
     while [ $COUNT -lt 10 ]; do
       if bluetoothctl show | grep -q "Powered: yes"; then break; fi
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       COUNT=$((COUNT+1))
     done
     
-    # 4. 필터 설정 (LE 전용)
+    # 4. Set filter (LE only)
     bluetoothctl discovery-filter --clear 2>/dev/null || true
     bluetoothctl discovery-filter --transport le 2>/dev/null || true
   `;

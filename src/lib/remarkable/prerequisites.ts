@@ -53,9 +53,9 @@ export const TOOL_DEFS: ToolDefinition[] = [
   { name: "ssh", command: "ssh" },
   { name: "scp", command: "scp" },
   { name: "sshpass", command: "sshpass" },
-  { name: "zstd (키보드 추출용)", command: "zstd" },
-  { name: "go (크로스 컴파일용)", command: "go" },
-  { name: "zig (C 크로스 컴파일용)", command: "zig" },
+  { name: "zstd (for keyboard extraction)", command: "zstd" },
+  { name: "go (for cross-compilation)", command: "go" },
+  { name: "zig (for C cross-compilation)", command: "zig" },
 ];
 
 const PACKAGE_MANAGERS: PackageManagerCandidate[] = [
@@ -207,22 +207,22 @@ export async function detectPackageManager(): Promise<PackageManagerInfo> {
       canAutoInstall,
       needsPrivilegeEscalation,
       autoInstallHint: candidate.id === "brew"
-        ? "브라우저에서 바로 설치를 진행할 수 있습니다."
+        ? "Installation can proceed directly in the browser."
         : canAutoInstall
-          ? "패키지 매니저와 비대화형 sudo 권한이 있어 자동 설치를 진행할 수 있습니다."
-          : "관리자 권한이 필요해 자동 설치 대신 터미널 명령을 직접 실행해야 합니다.",
+          ? "Package manager and passwordless sudo privileges are available; automatic installation can proceed."
+          : "Administrator privileges are required; you must execute terminal commands manually instead of automatic installation.",
     };
   }
 
   return {
     id: null,
-    label: host.id === "macos" ? "Homebrew" : "패키지 매니저",
+    label: host.id === "macos" ? "Homebrew" : "Package Manager",
     installed: false,
     canAutoInstall: false,
     needsPrivilegeEscalation: false,
     autoInstallHint: host.id === "macos"
-      ? "Homebrew를 설치한 뒤 다시 확인하세요."
-      : "지원되는 패키지 매니저를 찾지 못했습니다. 필수 도구를 직접 설치해야 합니다.",
+      ? "Please install Homebrew and check again."
+      : "Supported package manager not found. You must install the required tools manually.",
   };
 }
 
@@ -281,13 +281,13 @@ export function buildSingleToolInstallCommand(
 
 export function getPackageManagerBootstrapHint(platform: HostPlatformInfo): string {
   if (platform.id === "macos") {
-    return "Homebrew가 없으면 필수 도구 자동 설치를 진행할 수 없습니다.";
+    return "Automatic installation of required tools cannot proceed without Homebrew.";
   }
-  return "지원되는 패키지 매니저를 찾지 못했습니다. sshpass, zstd, go, zig를 직접 설치한 뒤 다시 확인하세요.";
+  return "Supported package manager not found. Please install sshpass, zstd, go, and zig manually and check again.";
 }
 
 export function getPackageManagerActionLabel(platform: HostPlatformInfo): string | null {
-  return platform.id === "macos" ? "Homebrew 설치" : null;
+  return platform.id === "macos" ? "Install Homebrew" : null;
 }
 
 export async function getToolStatuses(): Promise<ToolStatus[]> {

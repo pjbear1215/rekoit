@@ -50,7 +50,7 @@ const FILES_BT: FileMapping[] = [
   { local: "rekoit-bt-helper/rekoit-bt-helper", remote: "rekoit-bt-helper" },
 ];
 
-// 폰트 다운로드 URL (Google Noto CJK - SIL OFL 라이선스)
+// Font download URL (Google Noto CJK - SIL OFL License)
 const FONT_URLS = [
   "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansCJKkr-Regular.otf",
   "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansCJKkr-Regular.otf",
@@ -183,7 +183,7 @@ function shouldShowInstallLogLine(line: string, state: InstallState): boolean {
     if (trimmed.includes("NotoSansCJKkr")) return false;
     if (trimmed.includes("libepaper")) return false;
     if (trimmed.includes("login restore")) return false;
-    if (trimmed.includes("원본 파일 백업")) return false;
+    if (trimmed.includes("original file backup")) return false;
   }
   return true;
 }
@@ -327,7 +327,7 @@ async function verifyInstalledRuntime(
 
 function runLocal(command: string, cwd?: string, timeout = 120000): Promise<string> {
   return new Promise((resolve, reject) => {
-    // brew 설치 도구 경로 포함 (Apple Silicon / Intel)
+    // Include brew installation tool path (Apple Silicon / Intel)
     const extPath = `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/local/go/bin`;
     exec(command, { cwd, timeout, env: { ...process.env, PATH: extPath } }, (error, stdout, stderr) => {
       if (error) {
@@ -351,23 +351,23 @@ async function buildHangulDaemon(
   ];
 
   if (!shouldRebuildArtifact(outputPath, sourceFiles)) {
-    send("log", { line: "OK: hangul-daemon (이미 빌드됨)" });
+    send("log", { line: "OK: hangul-daemon (already built)" });
     return;
   }
 
   if (!fs.existsSync(path.join(sourceDir, "main.go"))) {
-    throw new Error(`소스 파일 없음: ${sourceDir}/main.go`);
+    throw new Error(`Source file missing: ${sourceDir}/main.go`);
   }
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
-  send("log", { line: "Go 크로스 컴파일 중 (GOOS=linux GOARCH=arm64)..." });
+  send("log", { line: "Cross-compiling Go (GOOS=linux GOARCH=arm64)..." });
   await runLocal(
     `GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o "${outputPath}" .`,
     sourceDir,
     180000,
   );
-  send("log", { line: "OK: hangul-daemon 빌드 완료" });
+  send("log", { line: "OK: hangul-daemon build complete" });
 }
 
 async function buildBluetoothHelper(
@@ -382,23 +382,23 @@ async function buildBluetoothHelper(
   ];
 
   if (!shouldRebuildArtifact(outputPath, sourceFiles)) {
-    send("log", { line: "OK: rekoit-bt-helper (이미 빌드됨)" });
+    send("log", { line: "OK: rekoit-bt-helper (already built)" });
     return;
   }
 
   if (!fs.existsSync(path.join(sourceDir, "main.go"))) {
-    throw new Error(`소스 파일 없음: ${sourceDir}/main.go`);
+    throw new Error(`Source file missing: ${sourceDir}/main.go`);
   }
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
-  send("log", { line: "Bluetooth Helper Go 크로스 컴파일 중 (GOOS=linux GOARCH=arm64)..." });
+  send("log", { line: "Cross-compiling Bluetooth Helper (GOOS=linux GOARCH=arm64)..." });
   await runLocal(
     `GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o "${outputPath}" .`,
     sourceDir,
     180000,
   );
-  send("log", { line: "OK: rekoit-bt-helper 빌드 완료" });
+  send("log", { line: "OK: rekoit-bt-helper build complete" });
 }
 
 async function downloadFont(
@@ -408,7 +408,7 @@ async function downloadFont(
   const outputPath = path.join(resourceDir, "fonts/NotoSansCJKkr-Regular.otf");
 
   if (fs.existsSync(outputPath)) {
-    send("log", { line: "OK: NotoSansCJKkr-Regular.otf (이미 다운로드됨)" });
+    send("log", { line: "OK: NotoSansCJKkr-Regular.otf (already downloaded)" });
     return;
   }
 
@@ -416,30 +416,30 @@ async function downloadFont(
 
   for (const url of FONT_URLS) {
     try {
-      send("log", { line: "한글 폰트 다운로드 중 (Google Noto CJK)..." });
+      send("log", { line: "Downloading Korean font (Google Noto CJK)..." });
       await runLocal(
         `curl -fSL --connect-timeout 30 --max-time 300 -o "${outputPath}" "${url}"`,
         undefined,
         310000,
       );
-      // 파일 크기 확인 (최소 1MB)
+      // Check file size (min 1MB)
       const stat = fs.statSync(outputPath);
       if (stat.size < 1_000_000) {
         fs.unlinkSync(outputPath);
-        throw new Error("다운로드된 파일이 너무 작습니다");
+        throw new Error("Downloaded file is too small");
       }
-      send("log", { line: `OK: 폰트 다운로드 완료 (${(stat.size / 1024 / 1024).toFixed(1)}MB)` });
+      send("log", { line: `OK: Font download complete (${(stat.size / 1024 / 1024).toFixed(1)}MB)` });
       return;
     } catch {
       if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
     }
   }
-  throw new Error("폰트 다운로드 실패. 수동으로 NotoSansCJKkr-Regular.otf를 resources/fonts/에 넣어주세요.");
+  throw new Error("Font download failed. Please manually place NotoSansCJKkr-Regular.otf in resources/fonts/.");
 }
 
-// 롤백 스크립트: 설치 전 상태로 완전 복원
+// ROLLBACK_SCRIPT: Complete restoration to pre-installation state
 const ROLLBACK_SCRIPT = `#!/bin/sh
-# hangul-rollback: 현재 설치된 한글 입력/블루투스 설치 제거
+# hangul-rollback: Remove currently installed Korean input/Bluetooth setup
 set -e
 
 mount -o remount,rw / 2>/dev/null || true
@@ -448,7 +448,7 @@ LIBEPAPER="/usr/lib/plugins/platforms/libepaper.so"
 LIBEPAPER_TMPFS="/dev/shm/hangul-libepaper.so"
 ROOTFS_DEV=$(mount | grep ' / ' | head -n1 | awk '{print $1}')
 
-echo "=== 한글 입력 롤백 시작 ==="
+echo "=== Starting Korean Input Rollback ==="
 
 resolve_libepaper_mount_target() {
     if grep -q " $LIBEPAPER " /proc/mounts 2>/dev/null; then
@@ -468,7 +468,7 @@ unmount_libepaper_mounts() {
     done
 }
 
-echo "[1/7] 서비스 중지..."
+echo "[1/7] Stopping services..."
 systemctl stop xochitl 2>/dev/null || true
 systemctl stop bluetooth.service 2>/dev/null || true
 for svc in hangul-daemon.service rekoit-restore.service rekoit-factory-guard.service rekoit-bt-agent.service rekoit-bt-wake-reconnect.service; do
@@ -477,7 +477,7 @@ for svc in hangul-daemon.service rekoit-restore.service rekoit-factory-guard.ser
 done
 killall hangul-daemon 2>/dev/null || true
 
-echo "[2/7] 활성 파티션 정리..."
+echo "[2/7] Cleaning up active partition..."
 rm -f /etc/systemd/system/hangul-daemon.service
 rm -f /etc/systemd/system/rekoit-restore.service
 rm -f /etc/systemd/system/rekoit-factory-guard.service
@@ -496,11 +496,11 @@ sed -i 's|^##*ConditionPathIsDirectory=/sys/class/bluetooth|ConditionPathIsDirec
 sed -i '/^Privacy = off$/d' /etc/bluetooth/main.conf 2>/dev/null || true
 sed -i '/^FastConnectable = true$/d' /etc/bluetooth/main.conf 2>/dev/null || true
 
-echo "[3/7] libepaper 원복 (마운트 해제만으로 충분)..."
+echo "[3/7] Reverting libepaper (unmounting is sufficient)..."
 unmount_libepaper_mounts || true
 rm -f "$LIBEPAPER_TMPFS"
 
-echo "[4/7] 폰트 및 rootfs 보조 파일 제거..."
+echo "[4/7] Removing fonts and rootfs support files..."
 rm -f /usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf
 fc-cache -f 2>/dev/null || true
 rm -f /opt/rekoit/factory-guard.sh
@@ -521,7 +521,7 @@ while read -r INFO_FILE; do
     esac
 done
 
-echo "[5/7] rootfs 영속 파일 정리..."
+echo "[5/7] Cleaning up persistent rootfs files..."
 if [ -n "$ROOTFS_DEV" ]; then
     mkdir -p /mnt/rootfs
     mount -o rw "$ROOTFS_DEV" /mnt/rootfs 2>/dev/null || true
@@ -548,7 +548,7 @@ if [ -n "$ROOTFS_DEV" ]; then
     umount /mnt/rootfs 2>/dev/null || true
 fi
 
-echo "[6/7] 비활성 파티션 정리..."
+echo "[6/7] Cleaning up inactive partition..."
 CURRENT=$(mount | grep ' / ' | head -n 1 | awk '{print $1}')
 case "$CURRENT" in
     /dev/mmcblk0p2) INACTIVE=/dev/mmcblk0p3 ;;
@@ -583,15 +583,15 @@ if [ -n "$INACTIVE" ]; then
     umount /mnt/inactive 2>/dev/null || true
 fi
 
-echo "[7/7] 서비스 재시작..."
+echo "[7/7] Restarting services..."
 rm -rf /home/root/rekoit 2>/dev/null || true
 systemctl daemon-reload
 systemctl restart xochitl 2>/dev/null || true
 
 echo ""
-echo "=== 롤백 완료 ==="
-echo "현재 지원하는 설치 항목이 제거되었습니다."
-echo "REKOIT 디렉토리와 블루투스 페어링 백업까지 제거되었습니다."
+echo "=== Rollback Complete ==="
+echo "Currently supported installation items have been removed."
+echo "The REKOIT directory and Bluetooth pairing backups have been deleted."
 `;
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -649,8 +649,8 @@ export async function GET(request: NextRequest): Promise<Response> {
           locales: [],
         };
 
-        // === Step 0: 소스에서 바이너리 빌드 ===
-        send("step", { step: 0, name: (effectiveState.installHangul || effectiveState.installBt) ? "소스에서 바이너리 빌드" : "설정 리소스 준비", status: "running" });
+        // === Step 0: Build binary from source ===
+        send("step", { step: 0, name: (effectiveState.installHangul || effectiveState.installBt) ? "Building binary from source" : "Preparing configuration resources", status: "running" });
         send("progress", { percent: 0, step: 0 });
 
         if (effectiveState.installHangul) {
@@ -666,14 +666,14 @@ export async function GET(request: NextRequest): Promise<Response> {
         }
 
         if (effectiveState.installHangul || effectiveState.installBt) {
-          send("step", { step: 0, name: "소스에서 바이너리 빌드 완료", status: "complete" });
+          send("step", { step: 0, name: "Binary build from source complete", status: "complete" });
         } else {
           send("progress", { percent: 20, step: 0 });
-          send("step", { step: 0, name: "설정 리소스 준비 완료", status: "complete" });
+          send("step", { step: 0, name: "Configuration resources ready", status: "complete" });
         }
 
-        // === Step 1: 원격 디렉토리 생성 및 백업 ===
-        send("step", { step: 1, name: "원격 디렉토리 생성 및 백업", status: "running" });
+        // === Step 1: Create remote directory and backup ===
+        send("step", { step: 1, name: "Creating remote directory and backup", status: "running" });
         send("progress", { percent: 25, step: 1 });
 
         const mkdirPaths = ["/home/root/rekoit"];
@@ -686,7 +686,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           password,
           `cat > /home/root/rekoit/install-state.conf << 'STATE_EOF'\n${renderInstallState(effectiveState)}STATE_EOF`,
         );
-        send("log", { line: "OK: install-state.conf 기록" });
+        send("log", { line: "OK: install-state.conf recorded" });
 
         if (effectiveState.installHangul) {
           const backupCommands = `
@@ -695,7 +695,7 @@ export async function GET(request: NextRequest): Promise<Response> {
             if [ -f "/usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf" ] && [ ! -f "$BACKUP_DIR/font_existed" ]; then
               touch "$BACKUP_DIR/font_existed"
             fi
-            # libepaper.so 원본 백업 (최초 1회)
+            # Original libepaper.so backup (First time only)
             LIBEPAPER="/usr/lib/plugins/platforms/libepaper.so"
             if [ -f "$LIBEPAPER" ] && [ ! -f "$LIBEPAPER_BACKUP" ]; then
               cp "$LIBEPAPER" "$LIBEPAPER_BACKUP"
@@ -703,12 +703,12 @@ export async function GET(request: NextRequest): Promise<Response> {
             echo "backup complete"
           `;
           await runSsh(ip, password, backupCommands);
-          send("log", { line: "OK: 원본 파일 백업 완료 (libepaper.so 포함)" });
+          send("log", { line: "OK: Initial file backup complete (including libepaper.so)" });
         }
 
-        send("step", { step: 1, name: "원격 디렉토리 생성 및 백업", status: "complete" });
+        send("step", { step: 1, name: "Remote directory and backup complete", status: "complete" });
 
-        // Step 1.5: 기존 서비스 중지
+        // Step 1.5: Stop existing services
         if (effectiveState.installHangul) {
           try {
               await runSsh(
@@ -716,33 +716,33 @@ export async function GET(request: NextRequest): Promise<Response> {
                 password,
                 "systemctl stop hangul-daemon.service 2>/dev/null || true; systemctl stop rekoit-restore.service 2>/dev/null || true;",
               );
-              send("log", { line: "OK: 기존 서비스 중지 및 로그인 restore 정리 완료" });
+              send("log", { line: "OK: Existing services stopped and login restore cleanup complete" });
             } catch {
-              // 서비스 미존재 시 무시
+              // Ignore if service does not exist
             }
         }
 
-        // === Step 2: 파일 업로드 ===
+        // === Step 2: File Upload ===
         const filesToUpload: FileMapping[] = [
           ...FILES_COMMON,
           ...(effectiveState.installHangul ? FILES_HANGUL : []),
           ...(effectiveState.installBt ? FILES_BT : []),
         ];
 
-        send("log", { line: `INFO: 총 ${filesToUpload.length}개의 파일을 전송합니다 (기기 상태에 따라 시간이 걸릴 수 있습니다)...` });
+        send("log", { line: `INFO: Transferring a total of ${filesToUpload.length} files (this may take time depending on device state)...` });
 
         for (let i = 0; i < filesToUpload.length; i++) {
           const file = filesToUpload[i];
           const localPath = path.isAbsolute(file.local) ? file.local : path.join(projectDir, file.local);
 
           if (!fs.existsSync(localPath)) {
-            send("log", { line: `WARNING: ${file.local} 파일을 찾을 수 없어 건너뜁니다.` });
+            send("log", { line: `WARNING: File ${file.local} not found, skipping.` });
             continue;
           }
 
-          send("step", { step: 2, name: `파일 업로드: ${file.remote}`, status: "running" });
+          send("step", { step: 2, name: `Uploading file: ${file.remote}`, status: "running" });
           
-          // 대용량 폰트 파일만 이미 존재하는지 확인하여 스킵
+          // Skip if large font file already exists
           let skipUpload = false;
           if (file.remote.endsWith(".otf")) {
             try {
@@ -754,10 +754,10 @@ export async function GET(request: NextRequest): Promise<Response> {
           }
 
           if (skipUpload) {
-            send("log", { line: `OK: ${file.remote} (이미 존재함, 업로드 생략)` });
+            send("log", { line: `OK: ${file.remote} (already exists, skipping upload)` });
           } else {
             if (file.remote.endsWith(".otf") || file.remote.includes("daemon") || file.remote.includes("helper")) {
-              send("log", { line: `업로드 중: ${file.remote}...` });
+              send("log", { line: `Uploading: ${file.remote}...` });
             }
             await runScp(
               ip,
@@ -772,11 +772,11 @@ export async function GET(request: NextRequest): Promise<Response> {
             step: 2,
           });
         }
-        send("log", { line: "OK: 모든 파일 업로드 완료" });
-        send("step", { step: 2, name: "파일 업로드 완료", status: "complete" });
+        send("log", { line: "OK: All files uploaded successfully" });
+        send("step", { step: 2, name: "File upload complete", status: "complete" });
 
-        // === Step 3: 롤백 스크립트 업로드 ===
-        send("step", { step: 3, name: "롤백 스크립트 설치", status: "running" });
+        // === Step 3: Install rollback script ===
+        send("step", { step: 3, name: "Installing rollback script", status: "running" });
         send("progress", { percent: 62, step: 3 });
 
         await runSsh(
@@ -785,12 +785,12 @@ export async function GET(request: NextRequest): Promise<Response> {
           `cat > /home/root/rekoit/rollback.sh << 'ROLLBACK_EOF'\n${ROLLBACK_SCRIPT}ROLLBACK_EOF`,
         );
         await runSsh(ip, password, "chmod +x /home/root/rekoit/rollback.sh");
-        send("log", { line: "OK: rollback.sh 생성 (bash /home/root/rekoit/rollback.sh 로 롤백)" });
+        send("log", { line: "OK: rollback.sh created (rollback using: bash /home/root/rekoit/rollback.sh)" });
 
-        send("step", { step: 3, name: "롤백 스크립트 설치 완료", status: "complete" });
+        send("step", { step: 3, name: "Rollback script installation complete", status: "complete" });
 
-        // === Step 4: install.sh 실행 ===
-        send("step", { step: 4, name: "설치 스크립트 실행", status: "running" });
+        // === Step 4: Run install.sh ===
+        send("step", { step: 4, name: "Executing installation script", status: "running" });
         send("progress", { percent: 65, step: 4 });
 
         try {
@@ -835,16 +835,16 @@ export async function GET(request: NextRequest): Promise<Response> {
           send("log", { line: "OK: install.sh completed; transient SSH disconnect only" });
         }
 
-        send("step", { step: 4, name: "설치 스크립트 실행 완료", status: "complete" });
+        send("step", { step: 4, name: "Installation script execution complete", status: "complete" });
         send("progress", { percent: 80, step: 4 });
 
-        // === Step 5: REKOIT 영구 복구 엔진 주입 (OverlayFS 완벽 대응) ===
-        send("step", { step: 5, name: "영구 복구 엔진 주입", status: "running" });
+        // === Step 5: REKOIT permanent recovery engine injection (Full OverlayFS support) ===
+        send("step", { step: 5, name: "Injecting permanent recovery engine", status: "running" });
         send("progress", { percent: 85, step: 5 });
 
-        // 1. /usr/bin/rekoit-restore 생성 (스크립트 내장형으로 /home 의존성 제거)
-        // === Step 5: REKOIT 복구 서비스 영구 설치 (System Root 주입) ===
-        send("step", { step: 5, name: "부팅 시 REKOIT 복구 서비스 설치", status: "running" });
+        // 1. Create /usr/bin/rekoit-restore (embedded script to remove /home dependency)
+        // === Step 5: Permanently install REKOIT recovery service (System Root injection) ===
+        send("step", { step: 5, name: "Installing REKOIT recovery service for boot", status: "running" });
         send("progress", { percent: 85, step: 5 });
 
         const helperPaths = [
@@ -855,7 +855,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         ];
         await runSsh(ip, password, `chmod +x ${helperPaths.join(" ")}`);
 
-        // 휘발성 /etc 대신 영구적인 /usr/lib/systemd/system에 서비스 등록
+        // Register service in permanent /usr/lib/systemd/system instead of volatile /etc
         const persistentSvcCmd = `
           mount -o remount,rw / &&
           cp /home/root/rekoit/rekoit-restore.service /usr/lib/systemd/system/rekoit-restore.service &&
@@ -869,13 +869,13 @@ export async function GET(request: NextRequest): Promise<Response> {
         `;
         await runSsh(ip, password, persistentSvcCmd);
 
-        send("log", { line: "OK: REKOIT 복구 서비스 -> /usr/lib/systemd/system (영구 설치)" });
-        send("step", { step: 5, name: "부팅 시 REKOIT 복구 서비스 설치 완료", status: "complete" });
+        send("log", { line: "OK: REKOIT recovery service -> /usr/lib/systemd/system (Permanent install)" });
+        send("step", { step: 5, name: "REKOIT recovery service installation complete", status: "complete" });
 
-        // === Step 6: 영속화 설정 마무리 ===
-        send("step", { step: 6, name: "영속화 설정 마무리", status: "running" });
+        // === Step 6: Finalize persistence settings ===
+        send("step", { step: 6, name: "Finalizing persistence settings", status: "running" });
         
-        // 반대편 파티션의 루트 영역에도 동일하게 서비스 및 설정 복제 (업데이트 대비)
+        // Replicate services and settings to the root area of the opposite partition (in preparation for updates)
         const inactivePersistenceCmd = `
           CURRENT_ROOT=$(mount | grep ' / ' | head -n1 | awk '{print $1}') && 
           ROOTFS_DEV="" && 
@@ -900,8 +900,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         `;
         await runSsh(ip, password, inactivePersistenceCmd);
         
-        send("log", { line: "OK: 펌웨어 업데이트 대비 서비스 및 설정 복제 완료" });
-        send("step", { step: 6, name: "설치 완료", status: "complete" });
+        send("log", { line: "OK: Service and settings replication for firmware updates complete" });
+        send("step", { step: 6, name: "Installation complete", status: "complete" });
 
         send("progress", { percent: 100, step: 6 });
         send("complete", { success: true });

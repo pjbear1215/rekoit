@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 interface TerminalOutputProps {
   lines: string[];
@@ -11,7 +12,7 @@ interface TerminalOutputProps {
   title?: string;
 }
 
-// 터미널 라인 분류 함수
+// Terminal line classification function
 function classifyLine(line: string): "error" | "success" | "warn" | "info" | "heading" | "default" {
   if (line.startsWith("ERROR") || line.startsWith("FAIL")) return "error";
   if (line.startsWith("OK") || line.includes("\u2713")) return "success";
@@ -21,7 +22,7 @@ function classifyLine(line: string): "error" | "success" | "warn" | "info" | "he
   return "default";
 }
 
-// 라인 타입별 색상 매핑
+// Color mapping per line type
 const lineColors: Record<ReturnType<typeof classifyLine>, string> = {
   error: "#f87171",
   success: "#4ade80",
@@ -37,10 +38,13 @@ export default function TerminalOutput({
   initiallyOpen = false,
   showDownload = false,
   onDownload,
-  title = "Process Log",
+  title,
 }: TerminalOutputProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(initiallyOpen);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const displayTitle = title || t('components.terminal.logTitle') || "Process Log";
 
   useEffect(() => {
     if (isOpen) {
@@ -75,7 +79,7 @@ export default function TerminalOutput({
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-        {isOpen ? "상세 로그 접기" : "상세 로그 보기"}
+        {isOpen ? t('components.terminal.hideLog') : t('components.terminal.showLog')}
       </button>
 
       {isOpen && (
@@ -86,7 +90,7 @@ export default function TerminalOutput({
             boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04), var(--shadow-md)",
           }}
         >
-          {/* macOS 스타일 툴바 */}
+          {/* macOS style toolbar */}
           <div
             className="flex items-center gap-2 px-4 py-2.5"
             style={{
@@ -102,11 +106,11 @@ export default function TerminalOutput({
               <div className="w-[8px] h-[8px] rounded-full" style={{ backgroundColor: "#4ade80" }} />
             </div>
             <span className="text-[10px] ml-2 font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>
-              {title}
+              {displayTitle}
             </span>
           </div>
 
-          {/* 터미널 본문 */}
+          {/* Terminal body */}
           <div
             className="font-mono text-[12px] leading-[20px] p-5 overflow-y-auto terminal-scroll"
             style={{
@@ -117,7 +121,7 @@ export default function TerminalOutput({
             }}
           >
             {lines.length === 0 ? (
-              <span className="opacity-40 italic">대기 중...</span>
+              <span className="opacity-40 italic">{t('components.terminal.waiting')}</span>
             ) : (
               lines.map((line, i) => {
                 const type = classifyLine(line);
@@ -136,7 +140,7 @@ export default function TerminalOutput({
                 );
               })
             )}
-            {/* 깜빡이는 커서 블록 */}
+            {/* Blinking cursor block */}
             {lines.length > 0 && (
               <span
                 style={{
@@ -153,7 +157,7 @@ export default function TerminalOutput({
             <div ref={bottomRef} />
           </div>
 
-          {/* 로그 다운로드 버튼 (오른쪽 하단) */}
+          {/* Log download button (bottom right) */}
           {showDownload && onDownload && lines.length > 0 && (
             <button
               onClick={onDownload}
@@ -171,7 +175,7 @@ export default function TerminalOutput({
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              로그 다운로드
+              {t('components.terminal.downloadLog')}
             </button>
           )}
         </div>

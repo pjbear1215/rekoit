@@ -92,7 +92,7 @@ export function SetupProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // 마운트 후 localStorage에서 로드하여 하이드레이션 오류 방지
+    // Load from localStorage after mount to prevent hydration errors
     const loadedState: Partial<SetupState> = {
       ip: getStoredValue("remarkable-ip", ""),
       password: getStoredEncrypted("remarkable-pw"),

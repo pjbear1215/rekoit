@@ -38,10 +38,10 @@ export async function GET(request: NextRequest): Promise<Response> {
             STDBUF=""
           fi
           
-          echo "INFO|스캔 시작 (LE 전용, 30초)"
+          echo "INFO|Starting scan (LE only, 30s)"
           $STDBUF bluetoothctl --timeout 30 scan on
           
-          echo "INFO|최종 기기 목록 확인 중..."
+          echo "INFO|Checking final device list..."
           bluetoothctl devices 2>/dev/null | while read -r _ ADDR NAME; do
             [ -n "$ADDR" ] || continue
             echo "DEVICE|$ADDR|$NAME"

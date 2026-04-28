@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslation } from "@/lib/i18n";
+
 interface FailureRoutine {
   id: string;
   title: string;
@@ -11,13 +15,15 @@ interface FailureRoutineCardProps {
 export default function FailureRoutineCard({
   routines,
 }: FailureRoutineCardProps) {
+  const { t } = useTranslation();
+
   return (
     <section className="operator-card animate-fade-in-up stagger-2">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="operator-label">실패 시 루틴</p>
+          <p className="operator-label">{t('manage.failureRoutine')}</p>
           <h3 className="text-[24px] font-semibold mt-2" style={{ color: "var(--text-primary)" }}>
-            지금 확인할 것
+            {t('manage.failureRoutineDesc')}
           </h3>
         </div>
       </div>

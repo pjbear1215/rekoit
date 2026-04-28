@@ -11,8 +11,8 @@ interface RadioProps {
   children?: ReactNode;
 }
 
-// 커스텀 스타일 라디오 버튼 컴포넌트
-// 네이티브 input은 sr-only로 숨기고 접근성 유지
+// Custom style radio button component
+// Native input is hidden with sr-only to maintain accessibility
 export default function Radio({
   checked,
   onChange,
@@ -33,7 +33,7 @@ export default function Radio({
         transition: `all var(--transition-fast)`,
       }}
     >
-      {/* 라디오 버튼 시각 요소 */}
+      {/* Radio button visual element */}
       <div
         className="flex items-center justify-center flex-shrink-0 mt-0.5"
         style={{
@@ -57,7 +57,7 @@ export default function Radio({
           />
         )}
       </div>
-      {/* 스크린 리더용 숨겨진 네이티브 input */}
+      {/* Hidden native input for screen readers */}
       <input
         type="radio"
         checked={checked}

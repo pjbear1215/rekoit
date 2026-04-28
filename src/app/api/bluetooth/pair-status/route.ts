@@ -52,6 +52,6 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     return Response.json({ paired, connected, trusted, ready: paired && trusted && connected });
   } catch {
-    return Response.json({ error: "확인 실패" }, { status: 500 });
+    return Response.json({ error: "Verification failed" }, { status: 500 });
   }
 }

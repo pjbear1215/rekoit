@@ -109,7 +109,7 @@ async function main() {
     const port = await findAvailablePort(3000);
     const url = `http://127.0.0.1:${port}`;
 
-    console.log("reMarkable 한글 설치 가이드를 시작합니다...");
+    console.log("Starting reMarkable Korean installation guide...");
     console.log(url);
     console.log("\nCtrl+C to stop.\n");
 

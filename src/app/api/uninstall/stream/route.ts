@@ -47,7 +47,7 @@ function runSshOnce(
       stderr += data.toString();
     });
     proc.on("close", (code) => {
-      // SSH 경고 메시지 필터링 (정상 동작)
+      // Filter SSH warning messages (normal behavior)
       const filteredStderr = stderr
         .split("\n")
         .filter((line) => !line.includes("Warning: Permanently added") && !line.includes("Connection to") && line.trim() !== "")
@@ -114,7 +114,7 @@ async function detectInstallation(
       echo "STATE_BT=0"
     fi
 
-    # 일반 Hangul 설치 파일 존재 여부 (/dev/null mask 링크 제외)
+    # Check if normal Korean Input Engine installation files exist (excluding /dev/null mask links)
     HANGUL_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
     if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$HANGUL_SERVICE_LINK" != "/dev/null" ]; then
       echo "HANGUL=yes"
@@ -122,7 +122,7 @@ async function detectInstallation(
       echo "HANGUL=no"
     fi
 
-    # BT 지원 여부
+    # Bluetooth support availability
     if [ -f /etc/modules-load.d/btnxpuart.conf ]; then
       echo "BT=yes"
     else
@@ -137,7 +137,7 @@ async function detectInstallation(
     done
     [ "$KEYBOARD_BT_COUNT" -gt 0 ] && echo "KEYBOARD_BT=yes" || echo "KEYBOARD_BT=no"
 
-    # libepaper 백업
+    # libepaper backup
     [ -f /home/root/rekoit/backup/libepaper.so.original ] && echo "LIBEPAPER_BACKUP=yes" || echo "LIBEPAPER_BACKUP=no"
 
     # factory-guard
@@ -146,7 +146,7 @@ async function detectInstallation(
     # swupdate conf.d hook
     [ -f /etc/swupdate/conf.d/99-rekoit-postupdate ] && echo "SWUPDATE_HOOK=yes" || echo "SWUPDATE_HOOK=no"
 
-    # 한글 폰트
+    # Korean font
     [ -f /usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf ] && echo "FONT=yes" || echo "FONT=no"`,
   );
 
@@ -199,13 +199,13 @@ export async function GET(request: NextRequest): Promise<Response> {
             /^[0-9A-F:]{17}$/ && $(NF-1) != "cache" {print $NF}
           '
         `.trim();
-        // === Step 0: 설치 상태 감지 ===
-        send("step", { step: 0, name: "설치 상태 감지", status: "running" });
+        // === Step 0: Detect installation state ===
+        send("step", { step: 0, name: "Detecting installation state", status: "running" });
         send("progress", { percent: 5, step: 0 });
 
         const detected = await detectInstallation(ip, password);
 
-        // 감지 결과 전송
+        // Send detection results
         send("detect", {
           hangul: detected.hangulInstalled,
           bt: detected.btInstalled,
@@ -215,19 +215,19 @@ export async function GET(request: NextRequest): Promise<Response> {
         });
 
         if (detected.hangulInstalled) {
-          send("log", { line: "감지: 한글 입력 런타임 설치됨" });
+          send("log", { line: "Detected: Input Engine runtime installed" });
         }
         if (detected.btInstalled) {
-          send("log", { line: "감지: 블루투스 키보드 지원 설치됨" });
+          send("log", { line: "Detected: Bluetooth keyboard support installed" });
         }
         if (detected.hasKeyboardPairings) {
-          send("log", { line: "감지: 블루투스 키보드 페어링 데이터가 남아있음" });
+          send("log", { line: "Detected: Bluetooth keyboard pairing data remaining" });
         }
         if (detected.hasFactoryGuard) {
-          send("log", { line: "감지: 팩토리 리셋 안전장치 설치됨" });
+          send("log", { line: "Detected: Factory reset safety guard installed" });
         }
         if (detected.hasSwupdateHook) {
-          send("log", { line: "감지: 펌웨어 업데이트 보호 설치됨" });
+          send("log", { line: "Detected: Firmware update protection installed" });
         }
         if (
           !detected.hangulInstalled
@@ -239,22 +239,22 @@ export async function GET(request: NextRequest): Promise<Response> {
           && !detected.hasSwupdateHook
           && !detected.hasLibepaperBackup
         ) {
-          send("log", { line: "감지: 설치된 한글 입력 구성 요소가 없습니다" });
-          send("step", { step: 0, name: "설치 상태 감지", status: "complete" });
+          send("log", { line: "Detected: No Korean input components installed" });
+          send("step", { step: 0, name: "Detection complete", status: "complete" });
           send("progress", { percent: 100, step: 0 });
           send("complete", { success: true });
           return;
         }
 
-        send("step", { step: 0, name: "설치 상태 감지", status: "complete" });
+        send("step", { step: 0, name: "Detection complete", status: "complete" });
         send("progress", { percent: 10, step: 0 });
 
-        // === Step 1: 서비스 중지 및 환경 준비 ===
-        send("step", { step: 1, name: "서비스 중지 및 환경 준비", status: "running" });
+        // === Step 1: Stop services and prepare environment ===
+        send("step", { step: 1, name: "Stopping services and preparing environment", status: "running" });
         send("progress", { percent: 15, step: 1 });
 
-        // 모든 관련 서비스를 중지 + disable
-        // 또한 전체 프로세스를 위해 루트 파티션을 rw로 마운트
+        // Stop and disable all related services
+        // Also mount the root partition as rw for the entire process
         await runSsh(ip, password, `
           mount -o remount,rw / 2>/dev/null || true
           for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
@@ -263,27 +263,27 @@ export async function GET(request: NextRequest): Promise<Response> {
           done
           killall hangul-daemon 2>/dev/null || true
         `);
-        send("log", { line: "OK: 관련 서비스 중지 및 rw 권한 확보" });
+        send("log", { line: "OK: Related services stopped and rw permissions secured" });
 
         if (detected.btInstalled || detected.hasKeyboardPairings) {
           const btCleanupResult = await runSsh(ip, password, buildBluetoothKeyboardCleanupScript());
           const removedCountMatch = btCleanupResult.match(/BT_KEYBOARD_REMOVED_COUNT=(\d+)/);
           const removedCount = removedCountMatch ? Number.parseInt(removedCountMatch[1], 10) : 0;
-          send("log", { line: `OK: 블루투스 키보드 페어링 정리 (${removedCount}개)` });
+          send("log", { line: `OK: Bluetooth keyboard pairings cleaned up (${removedCount} devices)` });
 
           await runSsh(ip, password, "systemctl stop bluetooth.service 2>/dev/null || true");
-          send("log", { line: "OK: bluetooth.service 중지" });
-        }
+          send("log", { line: "OK: bluetooth.service stopped" });
+          }
 
-        send("step", { step: 1, name: "서비스 중지", status: "complete" });
+          send("step", { step: 1, name: "Service shutdown", status: "complete" });
         send("progress", { percent: 25, step: 1 });
 
-        // === Step 2+3: 블록 디바이스 직접 마운트로 복원 + 삭제 통합 ===
-        // 핵심: 모든 ext4 쓰기를 direct mount 한 곳에서만 수행
-        // root mount(/)와 direct mount(/mnt/direct_rootfs)에 동시 쓰기하면 페이지 캐시 비일관성 발생
-        // /etc는 overlay(tmpfs upperdir) → 일반 rm은 whiteout만 생성, 리부트 시 복원됨
-        // /usr, /opt은 overlay 아니지만 같은 블록 디바이스이므로 direct mount로 통합
-        send("step", { step: 2, name: "시스템 파일 제거", status: "running" });
+        // === Step 2+3: Integrated restoration and deletion via direct block device mount ===
+        // Key: Perform all ext4 writes only on the direct mount point
+        // Writing to both root mount (/) and direct mount (/mnt/direct_rootfs) simultaneously causes page cache inconsistency
+        // /etc is overlay (tmpfs upperdir) -> normal rm only creates whiteout, restored on reboot
+        // /usr and /opt are not overlay but are on the same block device, so they are integrated via direct mount
+        send("step", { step: 2, name: "Removing system files", status: "running" });
         send("progress", { percent: 30, step: 2 });
 
         const directResult = await runSsh(ip, password, `
@@ -291,12 +291,12 @@ export async function GET(request: NextRequest): Promise<Response> {
           LIBEPAPER_TMPFS="/dev/shm/hangul-libepaper.so"
 
           unmount_libepaper_mounts() {
-            # 직접적인 bind mount 해제
+            # Unmount direct bind mounts
             while grep -q " $LIBEPAPER " /proc/mounts 2>/dev/null; do
               umount -l "$LIBEPAPER" 2>/dev/null || umount "$LIBEPAPER" 2>/dev/null || break
               sleep 0.5
             done
-            # tmpfs 소스 기반의 모든 마운트 지점 해제
+            # Unmount all mount points based on tmpfs source
             while mount | grep -q "$LIBEPAPER_TMPFS"; do
               TARGET=$(mount | awk -v src="$LIBEPAPER_TMPFS" '$1==src {print $3; exit}')
               [ -n "$TARGET" ] || break
@@ -308,7 +308,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           unmount_libepaper_mounts
           rm -f "$LIBEPAPER_TMPFS"
 
-          # 루트 파티션의 실제 블록 디바이스 찾기
+          # Find the actual block device of the root partition
           ROOTDEV=""
           for dev in /dev/mmcblk0p2 /dev/mmcblk0p3; do
             if mount | grep -q "$dev on / "; then
@@ -337,9 +337,9 @@ export async function GET(request: NextRequest): Promise<Response> {
           fi
           echo "DIRECT_MOUNT_OK"
 
-          # === libepaper.so 원본 복원 (마운트 해제만으로 충분) ===
+          # === libepaper.so original restoration (unmounting is sufficient) ===
           echo "LIBEPAPER_RESTORED_BY_UMOUNT"
-          # === /etc 파일 삭제 (overlay 우회) ===
+          # === Delete /etc files (bypassing overlay) ===
           rm -f /mnt/direct_rootfs/etc/systemd/system/hangul-daemon.service
           rm -f /mnt/direct_rootfs/etc/systemd/system/rekoit-restore.service
           rm -f /mnt/direct_rootfs/etc/systemd/system/rekoit-factory-guard.service
@@ -355,23 +355,23 @@ export async function GET(request: NextRequest): Promise<Response> {
           rm -f /mnt/direct_rootfs/etc/swupdate/conf.d/99-rekoit-postupdate
           rm -f /mnt/direct_rootfs/etc/modules-load.d/btnxpuart.conf
 
-          # === /opt/rekoit 삭제 (direct mount 경유) ===
+          # === Delete /opt/rekoit (via direct mount) ===
           rm -rf /mnt/direct_rootfs/opt/rekoit 2>/dev/null
 
-          # === 폰트 삭제 (direct mount 경유) ===
+          # === Delete font (via direct mount) ===
           ${buildFontRemovalCommands({ deleteFont, prefix: "/mnt/direct_rootfs" })}
 
-          # === bluetooth 설정 원복 (direct mount 경유) ===
+          # === Revert bluetooth settings (via direct mount) ===
           sed -i 's|^##*ConditionPathIsDirectory=/sys/class/bluetooth|ConditionPathIsDirectory=/sys/class/bluetooth|' /mnt/direct_rootfs/usr/lib/systemd/system/bluetooth.service 2>/dev/null || true
           sed -i '/^Privacy = off$/d' /mnt/direct_rootfs/etc/bluetooth/main.conf 2>/dev/null || true
           sed -i '/^FastConnectable = true$/d' /mnt/direct_rootfs/etc/bluetooth/main.conf 2>/dev/null || true
 
           sync
 
-          # === 통합 검증 (direct mount에서 확인) ===
+          # === Integrated verification (check on direct mount) ===
           echo "POST_RM_CHECK:"
           [ -d /mnt/direct_rootfs/opt/rekoit ] && echo "STILL:/opt/rekoit" || echo "GONE:/opt/rekoit"
-          # 폰트는 이제 보존이 기본 정책이므로 존재 여부만 확인
+          # Font preservation is now the default policy, so only check for existence
           [ -d /mnt/direct_rootfs/home/root/.local/share/fonts/rekoit ] && echo "KEPT:font" || echo "GONE:font"
           [ -f /mnt/direct_rootfs/etc/systemd/system/rekoit-factory-guard.service ] && echo "STILL:rekoit-factory-guard.service" || echo "GONE:rekoit-factory-guard.service"
           [ -f /mnt/direct_rootfs/etc/swupdate/conf.d/99-rekoit-postupdate ] && echo "STILL:swupdate-hook" || echo "GONE:swupdate-hook"
@@ -381,78 +381,78 @@ export async function GET(request: NextRequest): Promise<Response> {
           echo "DIRECT_REMOVE_DONE"
         `);
 
-        // 결과 파싱
+        // Parse results
         const stillExists = directResult.split("\n").filter((l) => l.startsWith("STILL:"));
         const goneItems = directResult.split("\n").filter((l) => l.startsWith("GONE:"));
 
         if (directResult.includes("DIRECT_MOUNT_OK")) {
-          send("log", { line: "OK: 블록 디바이스 직접 마운트 성공" });
+          send("log", { line: "OK: Direct block device mount successful" });
         }
 
         if (directResult.includes("LIBEPAPER_RESTORED")) {
-          send("log", { line: "OK: libepaper.so 원본 복원" });
+          send("log", { line: "OK: libepaper.so original restored" });
         }
 
-        // 파일 삭제 결과
+        // File deletion results
         const stillItems = stillExists.map(i => i.replace("STILL:", ""));
         const goneItemsClean = goneItems.map(i => i.replace("GONE:", ""));
         const keptItems = directResult.split("\n").filter((l) => l.startsWith("KEPT:"));
 
         if (stillItems.length > 0) {
           for (const item of stillItems) {
-            // 폰트가 삭제 실패 목록에 있는 것은 보존 정책 때문이므로 경고하지 않음
+            // Fonts in the deletion failure list are due to the preservation policy, so do not warn
             if (item.includes("font")) continue;
-            send("log", { line: `WARNING: 삭제 실패 — ${item}` });
+            send("log", { line: `WARNING: Failed to delete — ${item}` });
           }
         }
         
         if (keptItems.some(i => i.includes("font"))) {
-          send("log", { line: "OK: 한글 폰트 유지됨 (사용자 데이터 영역)" });
+          send("log", { line: "OK: Korean font preserved (User data area)" });
         } else if (goneItemsClean.some(i => i.includes("font"))) {
-          send("log", { line: "OK: 한글 폰트 제거됨" });
+          send("log", { line: "OK: Korean font removed" });
         }
 
         if (directResult.includes("GONE:/opt/rekoit")) {
-          send("log", { line: "OK: /opt/rekoit 제거" });
+          send("log", { line: "OK: /opt/rekoit removed" });
         }
         if (deleteFont) {
           if (directResult.includes("GONE:font")) {
-            send("log", { line: "OK: 한글 폰트 삭제" });
+            send("log", { line: "OK: Korean font deleted" });
           } else {
-            send("log", { line: "WARNING: 한글 폰트 삭제 실패" });
+            send("log", { line: "WARNING: Failed to delete Korean font" });
           }
         } else if (detected.hasFont) {
           if (directResult.includes("STILL:font")) {
-            send("log", { line: "OK: 한글 폰트 유지" });
+            send("log", { line: "OK: Korean font preserved" });
           } else {
-            send("log", { line: "WARNING: 한글 폰트 유지 실패" });
+            send("log", { line: "WARNING: Failed to preserve Korean font" });
           }
         } else {
-          send("log", { line: "INFO: 유지할 한글 폰트가 현재 설치되어 있지 않음" });
+          send("log", { line: "INFO: No Korean font currently installed to preserve" });
         }
 
         if (directResult.includes("DIRECT_REMOVE_DONE")) {
-          send("log", { line: `OK: ext4 파일 제거 완료 (${goneItems.length}개 삭제)` });
+          send("log", { line: `OK: ext4 file removal complete (${goneItems.length} items deleted)` });
         } else {
-          send("log", { line: "ERROR: 블록 디바이스 직접 마운트 실패" });
+          send("log", { line: "ERROR: Direct block device mount failed" });
           for (const line of directResult.split("\n").filter((l) => l.trim())) {
             send("log", { line: `DIAG: ${line.trim()}` });
           }
         }
 
         if (detected.hasSwupdateHook) {
-          send("log", { line: "OK: SWUpdate hook 제거 (ext4에서 삭제됨)" });
+          send("log", { line: "OK: SWUpdate hook removed (deleted from ext4)" });
         }
 
-        send("step", { step: 2, name: "시스템 파일 제거", status: "complete" });
+        send("step", { step: 2, name: "Removing system files", status: "complete" });
         send("progress", { percent: 50, step: 2 });
 
-        // === Step 3: 시스템 설정 원복 ===
-        send("step", { step: 3, name: "시스템 설정 원복", status: "running" });
+        // === Step 3: Reverting system settings ===
+        send("step", { step: 3, name: "Reverting system settings", status: "running" });
         send("progress", { percent: 55, step: 3 });
 
         await runSsh(ip, password, `
-          # overlay /etc 및 /opt 파일 rm (현재 세션 즉시 반영용)
+          # rm overlay /etc and /opt files (for immediate reflection in the current session)
           rm -rf /opt/rekoit 2>/dev/null || true
           rm -f /etc/systemd/system/hangul-daemon.service /etc/systemd/system/rekoit-restore.service /etc/systemd/system/rekoit-factory-guard.service /etc/systemd/system/rekoit-bt-agent.service /etc/systemd/system/rekoit-bt-wake-reconnect.service
           rm -f /etc/systemd/system/multi-user.target.wants/hangul-daemon.service /etc/systemd/system/multi-user.target.wants/rekoit-restore.service /etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service /etc/systemd/system/multi-user.target.wants/rekoit-bt-agent.service /etc/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service
@@ -474,20 +474,20 @@ SWAP_LEFT_CTRL_CAPSLOCK=0
 KEYBOARD_LOCALES=
 STATE_EOF
           fi
-          # 모든 작업 완료 후 읽기 전용으로 전환
+          # Switch to read-only after all operations are complete
           mount -o remount,ro / 2>/dev/null || true
           systemctl daemon-reload && sync
         `);
-        send("log", { line: "OK: 시스템 설정 원복 및 ro 전환 완료" });
+        send("log", { line: "OK: System settings reverted and switched to ro" });
 
-        send("step", { step: 3, name: "overlay 정리", status: "complete" });
+        send("step", { step: 3, name: "Overlay cleanup", status: "complete" });
         send("progress", { percent: 60, step: 3 });
 
-        // === Step 4: 설치된 파일 제거 ===
-        send("step", { step: 4, name: "설치 파일 제거", status: "running" });
+        // === Step 4: Removing installed files ===
+        send("step", { step: 4, name: "Removing installed files", status: "running" });
         send("progress", { percent: 65, step: 4 });
 
-        // SSH 재연결 확인 (swupdate 재시작으로 기기가 리부트되었을 수 있음)
+        // Check SSH reconnection (the device may have rebooted due to swupdate restart)
         let step4Connected = false;
         for (let attempt = 0; attempt < 8; attempt++) {
           try {
@@ -496,27 +496,27 @@ STATE_EOF
             break;
           } catch {
             if (attempt === 0) {
-              send("log", { line: "INFO: SSH 재연결 대기 중..." });
+              send("log", { line: "INFO: Waiting for SSH reconnection..." });
             }
             await new Promise((r) => setTimeout(r, 3000));
           }
         }
         if (!step4Connected) {
-          send("log", { line: "ERROR: SSH 재연결 실패 — 일부 정리 작업과 검증을 수행하지 못했습니다" });
-          send("error", { message: "SSH 재연결 실패로 원상복구 검증을 완료하지 못했습니다" });
+          send("log", { line: "ERROR: SSH reconnection failed — some cleanup and verification tasks could not be performed" });
+          send("error", { message: "Restoration verification could not be completed due to SSH reconnection failure" });
           return;
         }
 
-        // .bashrc 정리
+        // .bashrc cleanup
         await runSsh(ip, password, `
           systemctl stop bluetooth.service 2>/dev/null || true
         `);
 
-        send("step", { step: 4, name: "설치 파일 제거", status: "complete" });
+        send("step", { step: 4, name: "Installed files removed", status: "complete" });
         send("progress", { percent: 75, step: 4 });
 
-        // === Step 5: 비활성 파티션 정리 ===
-        send("step", { step: 5, name: "비활성 파티션 정리", status: "running" });
+        // === Step 5: Cleaning up inactive partition ===
+        send("step", { step: 5, name: "Cleaning up inactive partition", status: "running" });
         send("progress", { percent: 80, step: 5 });
 
         await runSsh(ip, password, `
@@ -554,13 +554,13 @@ STATE_EOF
             umount /mnt/inactive 2>/dev/null || true
           fi
         `);
-        send("log", { line: "OK: 비활성 파티션 REKOIT 흔적 제거" });
+        send("log", { line: "OK: Inactive partition REKOIT traces removed" });
 
-        send("step", { step: 5, name: "비활성 파티션 정리", status: "complete" });
+        send("step", { step: 5, name: "Inactive partition cleanup complete", status: "complete" });
         send("progress", { percent: 85, step: 5 });
 
-        // === Step 6: 설치 디렉토리 및 최종 정리 ===
-        send("step", { step: 6, name: "설치 디렉토리 정리", status: "running" });
+        // === Step 6: Cleaning up installation directory and final cleanup ===
+        send("step", { step: 6, name: "Cleaning up installation directory", status: "running" });
         send("progress", { percent: 88, step: 6 });
 
         if (cleanupFiles) {
@@ -569,58 +569,58 @@ STATE_EOF
             find /home/root/rekoit -type d -empty -delete 2>/dev/null || true
             rm -rf /home/root/rekoit 2>/dev/null || true
           `);
-          send("log", { line: "OK: /home/root/REKOIT 디렉토리 제거" });
+          send("log", { line: "OK: /home/root/REKOIT directory removed" });
         }
 
-        // daemon-reload 전에 mask 재확인 — overlay 캐시 서비스가 로드되지 않도록
+        // Re-verify mask before daemon-reload to prevent overlay cache services from loading
         await runSsh(ip, password, `
           for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
             systemctl mask "$svc" 2>/dev/null || true
           done
           systemctl daemon-reload && sync
         `);
-        send("log", { line: "OK: REKOIT 서비스 mask 재확인 + daemon-reload" });
+        send("log", { line: "OK: REKOIT service mask re-verified + daemon-reload" });
 
-        send("step", { step: 6, name: "설치 디렉토리 정리", status: "complete" });
+        send("step", { step: 6, name: "Installation directory cleanup complete", status: "complete" });
         send("progress", { percent: 93, step: 6 });
 
-        // === Step 7: xochitl 재시작 (마지막 — SSH 연결 끊김 예상) ===
-        send("step", { step: 7, name: "시스템 재시작", status: "running" });
+        // === Step 7: Restarting xochitl (Final step — SSH disconnect expected) ===
+        send("step", { step: 7, name: "System restart", status: "running" });
         send("progress", { percent: 95, step: 7 });
 
         try {
-          // xochitl restart 시 USB 네트워크가 일시적으로 끊기므로, 
-          // 2초 뒤에 백그라운드에서 실행되도록 하여 SSH 세션이 먼저 정상 종료되게 함
+          // Since USB network temporarily disconnects during xochitl restart,
+          // execute in the background after 2 seconds to allow the SSH session to terminate normally first.
           await runSsh(ip, password, `
             for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
               systemctl mask "$svc" 2>/dev/null || true
             done
             sync && (sleep 2 && systemctl restart xochitl) &
           `);
-          send("log", { line: "OK: xochitl 재시작 명령 전송 완료 (2초 뒤 실행)" });
+          send("log", { line: "OK: xochitl restart command sent successfully (executing in 2s)" });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          send("log", { line: `WARNING: xochitl 재시작 명령 전송 중 오류 (무시됨): ${msg}` });
+          send("log", { line: `WARNING: Error sending xochitl restart command (ignored): ${msg}` });
         }
 
-        send("step", { step: 7, name: "시스템 재시작", status: "complete" });
+        send("step", { step: 7, name: "System restart complete", status: "complete" });
         send("progress", { percent: 96, step: 7 });
 
-        // === Step 8: 재시작 후 삭제 검증 ===
-        send("step", { step: 8, name: "삭제 검증", status: "running" });
+        // === Step 8: Post-restart removal verification ===
+        send("step", { step: 8, name: "Verifying removal", status: "running" });
         send("progress", { percent: 97, step: 8 });
 
-        // SSH 재연결 대기 (xochitl 재시작 후 USB 네트워크 복구까지 최대 20초)
+        // Wait for SSH reconnection (up to 20 seconds for USB network recovery after xochitl restart)
         let verifyOutput = "";
         let verified = false;
         for (let attempt = 0; attempt < 4; attempt++) {
           await new Promise((r) => setTimeout(r, 5000));
           try {
-            send("log", { line: "INFO: 삭제 검증 시도 중..." });
+            send("log", { line: "INFO: Attempting removal verification..." });
             verifyOutput = await runSshOnce(ip, password, `
-              # 최종 live cleanup: active rootfs의 현재 런타임 뷰를 다시 한 번 강제 정리
+              # Final live cleanup: Forcefully clean the current runtime view of the active rootfs once more
               rm -rf /opt/rekoit 2>/dev/null || true
-              # 서비스 unmask 최종 확인 (xochitl 재시작 시점에 mask되어 있었음)
+              # Final verification of service unmask (was masked at the time of xochitl restart)
               for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
                 systemctl stop "$svc" 2>/dev/null || true
                 systemctl disable "$svc" 2>/dev/null || true
@@ -630,7 +630,7 @@ STATE_EOF
 
               echo "=== VERIFY ==="
 
-              # 모든 rootfs 파일을 direct mount로 확인 (overlay/페이지캐시 우회)
+              # Verify all rootfs files via direct mount (bypassing overlay/page cache)
               ROOTDEV=""
               for dev in /dev/mmcblk0p2 /dev/mmcblk0p3; do
                 if mount | grep -q "$dev on / "; then
@@ -654,43 +654,43 @@ STATE_EOF
               fi
 
               if [ -n "$DIRECT" ]; then
-                # /etc 파일 확인 (ext4 직접)
-                [ -f "$DIRECT/etc/systemd/system/hangul-daemon.service" ] && echo "REMAIN:hangul-daemon.service 파일" || true
-                [ -f "$DIRECT/etc/systemd/system/rekoit-restore.service" ] && echo "REMAIN:rekoit-restore.service 파일" || true
-                [ -f "$DIRECT/etc/systemd/system/rekoit-factory-guard.service" ] && echo "REMAIN:rekoit-factory-guard.service 파일" || true
-                [ -f "$DIRECT/etc/systemd/system/rekoit-bt-agent.service" ] && echo "REMAIN:rekoit-bt-agent.service 파일" || true
-                [ -f "$DIRECT/etc/systemd/system/rekoit-bt-wake-reconnect.service" ] && echo "REMAIN:rekoit-bt-wake-reconnect.service 파일" || true
-                [ -f "$DIRECT/etc/swupdate/conf.d/99-rekoit-postupdate" ] && echo "REMAIN:swupdate hook 파일" || true
-                [ -f "$DIRECT/etc/modules-load.d/btnxpuart.conf" ] && echo "REMAIN:btnxpuart 모듈 설정" || true
+                # Check /etc files (ext4 directly)
+                [ -f "$DIRECT/etc/systemd/system/hangul-daemon.service" ] && echo "REMAIN:hangul-daemon.service file" || true
+                [ -f "$DIRECT/etc/systemd/system/rekoit-restore.service" ] && echo "REMAIN:rekoit-restore.service file" || true
+                [ -f "$DIRECT/etc/systemd/system/rekoit-factory-guard.service" ] && echo "REMAIN:rekoit-factory-guard.service file" || true
+                [ -f "$DIRECT/etc/systemd/system/rekoit-bt-agent.service" ] && echo "REMAIN:rekoit-bt-agent.service file" || true
+                [ -f "$DIRECT/etc/systemd/system/rekoit-bt-wake-reconnect.service" ] && echo "REMAIN:rekoit-bt-wake-reconnect.service file" || true
+                [ -f "$DIRECT/etc/swupdate/conf.d/99-rekoit-postupdate" ] && echo "REMAIN:swupdate hook file" || true
+                [ -f "$DIRECT/etc/modules-load.d/btnxpuart.conf" ] && echo "REMAIN:btnxpuart module configuration" || true
 
-                # rootfs 파일 확인 (direct mount 경유 — root mount 캐시 우회)
-                [ -f "$DIRECT${HANGUL_FONT_PATH}" ] && echo "REMAIN:한글 폰트 파일" || true
-                ${!deleteFont && detected.hasFont ? `[ -f "$DIRECT${HANGUL_FONT_PATH}" ] || echo "MISSING:한글 폰트 파일"` : ""}
-                [ -d "$DIRECT/opt/rekoit" ] && echo "REMAIN:/opt/rekoit 디렉토리" || true
+                # Check rootfs files (via direct mount — bypassing root mount cache)
+                [ -f "$DIRECT${HANGUL_FONT_PATH}" ] && echo "REMAIN:Korean font file" || true
+                ${!deleteFont && detected.hasFont ? `[ -f "$DIRECT${HANGUL_FONT_PATH}" ] || echo "MISSING:Korean font file"` : ""}
+                [ -d "$DIRECT/opt/rekoit" ] && echo "REMAIN:/opt/rekoit directory" || true
               else
-                # direct mount 실패 시 root mount로 fallback
-                [ -f ${HANGUL_FONT_PATH} ] && echo "REMAIN:한글 폰트 파일" || true
-                ${!deleteFont && detected.hasFont ? `[ -f ${HANGUL_FONT_PATH} ] || echo "MISSING:한글 폰트 파일"` : ""}
-                [ -d /opt/rekoit ] && echo "REMAIN:/opt/rekoit 디렉토리" || true
+                # Fallback to root mount if direct mount fails
+                [ -f ${HANGUL_FONT_PATH} ] && echo "REMAIN:Korean font file" || true
+                ${!deleteFont && detected.hasFont ? `[ -f ${HANGUL_FONT_PATH} ] || echo "MISSING:Korean font file"` : ""}
+                [ -d /opt/rekoit ] && echo "REMAIN:/opt/rekoit directory" || true
               fi
 
-              # /home 파일 확인 (별도 파티션 — overlay 아님)
-              [ -d /home/root/rekoit ] && echo "REMAIN:rekoit 디렉토리" || true
-              [ -d /home/root/rekoit/bt-pairing ] && echo "REMAIN:bt-pairing 백업 디렉토리" || true
+              # Check /home files (separate partition — not overlay)
+              [ -d /home/root/rekoit ] && echo "REMAIN:rekoit directory" || true
+              [ -d /home/root/rekoit/bt-pairing ] && echo "REMAIN:bt-pairing backup directory" || true
               if [ -f /home/root/rekoit/install-state.conf ]; then
                 . /home/root/rekoit/install-state.conf
                 [ "\${INSTALL_HANGUL:-1}" = "0" ] || echo "REMAIN:install-state hangul flag"
                 [ "\${INSTALL_BT:-1}" = "0" ] || echo "REMAIN:install-state bt flag"
               fi
-              grep -q 'rekoit' /home/root/.bashrc 2>/dev/null && echo "REMAIN:.bashrc 자동복구 스크립트" || true
-              [ -f /dev/shm/hangul-libepaper.so ] && echo "REMAIN:libepaper tmpfs 파일" || true
+              grep -q 'rekoit' /home/root/.bashrc 2>/dev/null && echo "REMAIN:.bashrc auto-recovery script" || true
+              [ -f /dev/shm/hangul-libepaper.so ] && echo "REMAIN:libepaper tmpfs file" || true
               mount | grep -q ' /usr/lib/plugins/platforms/libepaper.so ' && echo "REMAIN:libepaper runtime mount" || true
 
-              # 블루투스 확인 (bluetoothctl 배제 — 서비스 중지 시 hang 위험)
+              # Bluetooth verification (excluding bluetoothctl — risk of hanging when service is stopped)
               find /var/lib/bluetooth -mindepth 2 -maxdepth 2 -type d 2>/dev/null | awk -F/ '
                 /^[0-9A-F:]{17}$/ && $(NF-1) != "cache" {print $NF}
               ' | while read ADDR; do
-                echo "REMAIN:블루투스 디바이스 상태 ($ADDR)"
+                echo "REMAIN:Bluetooth device status ($ADDR)"
               done
 
               if [ -n "$DIRECT" ]; then
@@ -703,7 +703,7 @@ STATE_EOF
             break;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            send("log", { line: `INFO: SSH 재연결 대기 중... (${attempt + 1}/8) - ${msg}` });
+            send("log", { line: `INFO: Waiting for SSH reconnection... (${attempt + 1}/8) - ${msg}` });
           }
         }
 
@@ -717,28 +717,28 @@ STATE_EOF
             .filter((line) => line.startsWith("MISSING:"))
             .map((line) => line.replace("MISSING:", "").trim());
 
-          // 폰트 유지 선택 시 폰트 관련 항목 제외
+          // Exclusion of font-related items when font preservation is selected
           const filtered = deleteFont
             ? remains
-            : remains.filter((r) => !r.includes("한글 폰트"));
+            : remains.filter((r) => !r.includes("Korean font"));
 
           if (filtered.length === 0) {
-            send("log", { line: "OK: 전체 검증 완료 — 모든 항목 정상 삭제됨" });
+            send("log", { line: "OK: Complete verification finished — all items successfully removed" });
           } else {
             for (const item of filtered) {
-              send("log", { line: `WARNING: 미삭제 항목 — ${item}` });
+              send("log", { line: `WARNING: Unremoved item — ${item}` });
             }
-            send("log", { line: `WARNING: ${filtered.length}개 항목이 완전히 삭제되지 않았습니다` });
+            send("log", { line: `WARNING: ${filtered.length} items were not completely removed` });
           }
 
           for (const item of missing) {
-            send("log", { line: `WARNING: 보존 실패 — ${item}` });
+            send("log", { line: `WARNING: Preservation failed — ${item}` });
           }
-        } else {
-          send("log", { line: "WARNING: SSH 재연결 실패 — 삭제 검증을 수행할 수 없습니다" });
-        }
+          } else {
+          send("log", { line: "WARNING: SSH reconnection failed — removal verification could not be performed" });
+          }
 
-        send("step", { step: 8, name: "삭제 검증", status: "complete" });
+          send("step", { step: 8, name: "Removal verification", status: "complete" });
         send("progress", { percent: 100, step: 8 });
         send("complete", { success: true });
       } catch (error: unknown) {

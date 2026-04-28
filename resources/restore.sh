@@ -4,13 +4,13 @@
 
 set -e
 
-# 이미 복구되어 데몬이 작동 중이라면 즉시 종료 (로그인 시 부하 최소화)
+# Exit immediately if the daemon is already running (minimize load during login)
 if systemctl is-active hangul-daemon.service >/dev/null 2>&1; then
     exit 0
 fi
 
 LOG="/home/root/rekoit/restore.log"
-echo "[$(date)] restore.sh 시작 (필요에 의한 실행)" >> "$LOG"
+echo "[$(date)] restore.sh started (on-demand execution)" >> "$LOG"
 
 mount -o remount,rw / 2>/dev/null || true
 
@@ -86,10 +86,10 @@ if [ -f "$LIBEPAPER" ] && [ -f "$LIBEPAPER_BACKUP" ]; then
     CURRENT_MD5=$(md5sum "$LIBEPAPER" | cut -d' ' -f1)
     BACKUP_MD5=$(md5sum "$LIBEPAPER_BACKUP" | cut -d' ' -f1)
     if [ "$CURRENT_MD5" != "$BACKUP_MD5" ]; then
-        # 펌웨어 업데이트 감지됨: 기존 백업을 최신으로 교체
+        # Firmware update detected: replace existing backup with the latest version
         mv "$LIBEPAPER_BACKUP" "$BASEDIR/backup/libepaper.so.old-$(date +%Y%m%d)" 2>/dev/null || true
         cp "$LIBEPAPER" "$LIBEPAPER_BACKUP"
-        echo "[RESTORE] 펌웨어 업데이트 감지: libepaper.so 백업을 최신 버전으로 갱신 완료"
+        echo "[RESTORE] Firmware update detected: libepaper.so backup updated to the latest version"
     fi
 fi
 
@@ -98,23 +98,23 @@ if [ "$INSTALL_HANGUL" = "1" ]; then
     restore_hangul_runtime || true
 fi
 if [ "$INSTALL_BT" = "1" ]; then
-    # 블루투스 복구는 시간이 걸리므로 백그라운드 실행
+    # Bluetooth restoration takes time, so run it in the background
     (
         . "$BASEDIR/restore-bt.sh"
         restore_bt_runtime || true
     ) >/dev/null 2>&1 &
 fi
 
-# 펌웨어 업데이트 상황일 경우 (현재 서비스 링크 등이 유실되었을 수 있으므로) 필요한 패치 재적용
-# /usr/lib/systemd/system/rekoit-restore.service는 이미 영구적이므로 여기서 다시 복사할 필요 없음
+# Re-apply necessary patches in case of firmware update (service links might be lost)
+# /usr/lib/systemd/system/rekoit-restore.service is already permanent, no need to copy again
 
 if [ "$CHANGED" -eq 1 ]; then
     systemctl daemon-reload
 fi
 
-# 모든 복구 작업 완료 후 다시 읽기 전용으로 원복 (시스템 안정성)
+# Restore to read-only after completion (system stability)
 mount -o remount,ro / 2>/dev/null || true
 
-echo "[$(date)] restore.sh 완료 (changed=$CHANGED)" >> "$LOG"
+echo "[$(date)] restore.sh completed (changed=$CHANGED)" >> "$LOG"
 
 exit 0

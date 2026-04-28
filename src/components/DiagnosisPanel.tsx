@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import Button from "@/components/Button";
 import SectionDivider from "@/components/SectionDivider";
 import TerminalOutput from "@/components/TerminalOutput";
+import { useTranslation } from "@/lib/i18n";
 
 interface DiagnosisPanelProps {
   ip: string;
@@ -17,12 +18,16 @@ interface DiagnosisPanelProps {
 export default function DiagnosisPanel({
   ip,
   password,
-  title = "진단",
-  subtitle = "키보드 문제 진단",
+  title,
+  subtitle,
   className,
 }: DiagnosisPanelProps) {
+  const { t } = useTranslation();
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagResult, setDiagResult] = useState<Record<string, string> | null>(null);
+
+  const displayTitle = title || t('diagnose.title');
+  const displaySubtitle = subtitle || t('diagnose.description');
 
   const runDiagnosis = async () => {
     setDiagnosing(true);
@@ -36,7 +41,7 @@ export default function DiagnosisPanel({
       const data = await res.json();
       setDiagResult(data.results);
     } catch {
-      setDiagResult({ error: "서버 오류" });
+      setDiagResult({ error: t('common.error') });
     } finally {
       setDiagnosing(false);
     }
@@ -52,7 +57,7 @@ export default function DiagnosisPanel({
     const body = Object.entries(diagResult)
       .map(([key, value]) => `--- ${key} ---\n${value}`.trimEnd())
       .join("\n\n");
-    const content = `=== REKOIT 진단 결과 ===\n시간: ${new Date().toISOString()}\n기기: ${ip}\n\n${body}\n`;
+    const content = `=== REKOIT Diagnosis Results ===\nTime: ${new Date().toISOString()}\nDevice: ${ip}\n\n${body}\n`;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -77,27 +82,27 @@ export default function DiagnosisPanel({
 
   return (
     <div className={className} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <SectionDivider label={title} />
+      <SectionDivider label={displayTitle} />
       <div
         className="flex items-center justify-between p-4 bg-black/[0.03] border border-black/5"
       >
         <div>
           <p className="text-[16px] font-bold text-black">
-            {title}
+            {displayTitle}
           </p>
           <p className="text-[13px] font-medium opacity-50 mt-0.5">
-            {subtitle}
+            {displaySubtitle}
           </p>
         </div>
         <Button variant="primary" size="sm" onClick={runDiagnosis} loading={diagnosing} className="font-bold">
-          실행
+          {t('diagnose.runDiagnose')}
         </Button>
       </div>
       {diagResult && (
         <div className="animate-fade-in">
           <TerminalOutput
             lines={logLines}
-            title="System Diagnosis"
+            title={t('diagnose.logTitle') || "System Diagnosis"}
             initiallyOpen={true}
             showDownload={true}
             onDownload={downloadDiagnosis}

@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslation } from "@/lib/i18n";
+
 interface TimelineItem {
   id: string;
   label: string;
@@ -12,11 +16,13 @@ interface OperationTimelineProps {
 export default function OperationTimeline({
   items,
 }: OperationTimelineProps) {
+  const { t } = useTranslation();
+
   return (
     <section className="operator-card animate-fade-in-up stagger-3">
-      <p className="operator-label">운영 타임라인</p>
+      <p className="operator-label">{t('manage.operationTimeline')}</p>
       <h3 className="text-[24px] font-semibold mt-2" style={{ color: "var(--text-primary)" }}>
-        재부팅, 업데이트, 초기화 준비 상태
+        {t('manage.operationTimelineDesc')}
       </h3>
 
       <div className="mt-6 space-y-4">
@@ -49,7 +55,7 @@ export default function OperationTimeline({
                   className="text-[11px] font-semibold uppercase tracking-[0.14em]"
                   style={{ color: item.status === "done" ? "var(--success)" : "var(--warning)" }}
                 >
-                  {item.status === "done" ? "Ready" : "Pending"}
+                  {item.status === "done" ? t('prerequisites.statusPass') : t('manage.pending')}
                 </span>
               </div>
               <p className="text-[14px] mt-2" style={{ color: "var(--text-muted)" }}>

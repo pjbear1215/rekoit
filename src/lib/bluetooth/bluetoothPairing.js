@@ -82,10 +82,10 @@ DEVICE_NAME="${escapedName}"
 
 log() { echo "LOG|$1"; }
 
-log "--- 페어링 절차 시작 (대상: $DEVICE_NAME / $ADDR) ---"
+log "--- Pairing procedure started (Target: $DEVICE_NAME / $ADDR) ---"
 
 # 1. STOP INTERFERING SERVICES
-log "백그라운드 서비스 및 기존 세션 정리..."
+log "Cleaning up background services and existing sessions..."
 systemctl stop rekoit-bt-wake-reconnect.service 2>/dev/null || true
 killall -9 bluetoothctl 2>/dev/null || true
 # Create sentinel to block background reconnection monitor
@@ -93,7 +93,7 @@ touch /tmp/rekoit-setup-active
 sleep 0.5
 
 # 2. CLEAN UP OLD INFO
-log "기존 기기 정보 캐시 삭제 중..."
+log "Deleting existing device info cache..."
 bluetoothctl disconnect "$ADDR" 2>/dev/null || true
 bluetoothctl untrust "$ADDR" 2>/dev/null || true
 bluetoothctl remove "$ADDR" 2>/dev/null || true
@@ -103,7 +103,7 @@ if [ -n "$DEVICE_NAME" ]; then
   bluetoothctl devices 2>/dev/null | while read -r _ STALE_ADDR STALE_NAME; do
     [ -n "$STALE_ADDR" ] || continue
     [ "$STALE_NAME" = "$DEVICE_NAME" ] || continue
-    log "중복된 이름의 기기 정리: $STALE_ADDR"
+    log "Cleaning up duplicate device name: $STALE_ADDR"
     bluetoothctl disconnect "$STALE_ADDR" 2>/dev/null || true
     bluetoothctl untrust "$STALE_ADDR" 2>/dev/null || true
     bluetoothctl remove "$STALE_ADDR" 2>/dev/null || true
@@ -126,12 +126,12 @@ cleanup() {
   kill "$AUTO_YES_PID" 2>/dev/null || true
   kill "$BT_PID" 2>/dev/null || true
   rm -f "$IN_FIFO" "$OUT_LOG" /tmp/rekoit-setup-active
-  log "백그라운드 서비스 복구 중..."
+  log "Restoring background services..."
   systemctl start rekoit-bt-wake-reconnect.service 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
-log "인터랙티브 블루투스 에이전트 구동..."
+log "Running interactive Bluetooth agent..."
 bluetoothctl < "$IN_FIFO" > "$OUT_LOG" 2>&1 &
 BT_PID=$!
 tail -n +1 -f "$OUT_LOG" &
@@ -166,7 +166,7 @@ sleep 0.2
 send_cmd "pairable on"
 sleep 0.5
 
-log "기기 검색 및 페어링 요청 전송..."
+log "Searching for devices and sending pairing request..."
 # Start scan to find the BLE device, then pair immediately
 send_cmd "scan on"
 sleep 2
@@ -174,7 +174,7 @@ send_cmd "pair $ADDR"
 
 PAIRED=0
 COUNT=0
-log "페어링 응답 대기 중 (최대 60초)..."
+log "Waiting for pairing response (max 60s)..."
 while [ $COUNT -lt 60 ]; do
   COUNT=$((COUNT + 1))
   sleep 1
@@ -192,11 +192,11 @@ while [ $COUNT -lt 60 ]; do
       ;;
   esac
 done
-
 if [ "$PAIRED" -eq 1 ]; then
-  log "페어링 성공! 기기 신뢰 및 연결 설정 중..."
+  log "Pairing successful! Configuring device trust and connection..."
   send_cmd "scan off"
   sleep 0.2
+...
   send_cmd "trust $ADDR"
   sleep 1
   send_cmd "connect $ADDR"
@@ -217,19 +217,19 @@ if [ "$PAIRED" -eq 1 ]; then
     echo "PAIRED_ADDR:$ADDR"
     echo "PAIR_SUCCESS"
   else
-    log "경고: 페어링은 성공했으나 연결이 불안정합니다."
+    log "Warning: Pairing successful but connection is unstable."
     echo "PAIRED_ADDR:$ADDR"
     echo "PAIR_PARTIAL"
   fi
 else
-  log "오류: 페어링 요청이 기기에 의해 거절되었거나 패스키 입력이 누락되었습니다."
+  log "Error: Pairing request rejected by device or passkey entry was missing."
   echo "PAIR_FAILED"
 fi
 
 send_cmd "quit"
 wait "$BT_PID"
 BT_STATUS=$?
-log "세션 종료 (Status: $BT_STATUS)"
+log "Session terminated (Status: $BT_STATUS)"
 `;
 }
 

@@ -56,11 +56,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { ip, password } = body;
 
   if (!ip || !password) {
-    return NextResponse.json({ error: "ip, password 필수" }, { status: 400 });
+    return NextResponse.json({ error: "ip and password are required" }, { status: 400 });
   }
 
   if (!/^[\d.]+$/.test(ip)) {
-    return NextResponse.json({ error: "잘못된 IP 형식" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid IP format" }, { status: 400 });
   }
 
   try {
@@ -71,19 +71,19 @@ if [ "$ACTIVE" = "active" ]; then
   POWERED=$(bluetoothctl show 2>/dev/null | grep "Powered:" | awk '{print $2}')
   [ -n "$POWERED" ] || POWERED=no
   
-  # 모든 알려진 기기 목록 (Paired 또는 Trusted 상태인 기기 추출)
-  # [NEW] 접두어 제거 및 정확한 컬럼 추출
+  # List all known devices (extract Paired or Trusted devices)
+  # [NEW] Remove prefixes and accurately extract columns
   bluetoothctl devices 2>/dev/null | sed 's/\\[NEW\\] //' | while read -r TYPE ADDR NAME; do
     [ "$TYPE" = "Device" ] || continue
     INFO=$(bluetoothctl info "$ADDR" 2>/dev/null || true)
     
-    # Paired 또는 Trusted 면 저장된 기기로 간주
+    # Consider as a saved device if Paired or Trusted
     IS_PAIRED=$(echo "$INFO" | grep -q "Paired: yes" && echo "yes" || echo "no")
     IS_TRUSTED=$(echo "$INFO" | grep -q "Trusted: yes" && echo "yes" || echo "no")
     
     if [ "$IS_PAIRED" = "yes" ] || [ "$IS_TRUSTED" = "yes" ]; then
       IS_CONNECTED=$(echo "$INFO" | grep -q "Connected: yes" && echo "yes" || echo "no")
-      # 이름이 비어있으면 info에서 다시 추출
+      # Extract name from info if it is empty
       [ -z "$NAME" ] && NAME=$(echo "$INFO" | grep "Name:" | cut -d' ' -f2- || echo "Unknown")
       echo "DEVICE|$ADDR|$IS_CONNECTED|$NAME"
     fi

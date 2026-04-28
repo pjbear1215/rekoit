@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSetup } from "./store";
 
-// EULA 동의 + 연결 확인 가드
-// welcome 페이지(/)와 관리 페이지(/manage, /uninstall)를 제외한 모든 페이지에서 사용
+// EULA agreement + Connection verification guard
+// Used on all pages except welcome (/) and management pages (/manage, /uninstall)
 export function useGuard(): boolean {
   const router = useRouter();
   const pathname = usePathname();

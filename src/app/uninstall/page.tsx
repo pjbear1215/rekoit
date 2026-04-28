@@ -8,10 +8,12 @@ import TerminalOutput from "@/components/TerminalOutput";
 import ErrorReport from "@/components/ErrorReport";
 import { useSetup } from "@/lib/store";
 import { ensureSshSession } from "@/lib/client/sshSession";
+import { useTranslation } from "@/lib/i18n";
 
 type UninstallStatus = "ready" | "uninstalling" | "complete" | "error";
 
 export default function UninstallPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { state } = useSetup();
@@ -36,22 +38,26 @@ export default function UninstallPage() {
 
   const pageTitle = isPartialRemove
     ? removeTarget === "hangul"
-      ? "한글 입력 엔진 제거"
-      : "블루투스 도우미 제거"
-    : "전체 원상복구";
+      ? t('uninstall.titleHangul')
+      : t('uninstall.titleBt')
+    : t('uninstall.title');
+    
   const pageDescription = isPartialRemove
     ? removeTarget === "hangul"
-      ? "한글 입력 엔진 관련 항목만 제거하고 블루투스 도우미 관련 구성과 한글 폰트는 유지합니다."
-      : "블루투스 도우미 관련 항목만 제거하고 한글 입력 엔진 구성과 한글 폰트는 유지합니다."
-    : "설치된 한글 입력 엔진/블루투스 도우미를 모두 제거하고 원본 상태로 복원합니다. (한글 폰트는 유지됩니다.)";
-  const readyGuideTitle = isPartialRemove ? "부분 제거 안내" : "복구 작업 안내";
+      ? t('uninstall.descHangul')
+      : t('uninstall.descBt')
+    : t('uninstall.descAll');
+    
+  const readyGuideTitle = isPartialRemove ? t('uninstall.readyGuideTitlePartial') : t('uninstall.readyGuideTitle');
+  
   const completeMessage = isPartialRemove
     ? removeTarget === "hangul"
-      ? "한글 입력 엔진 제거가 완료되었습니다. 한글 폰트는 기기에 유지되어 있습니다."
-      : "블루투스 도우미 제거가 완료되었습니다."
-    : "전체 원상복구가 완료되었습니다. 한글 폰트는 기기에 유지되어 있습니다.";
-  const errorContext = isPartialRemove ? "부분 제거" : "원상복구";
-  const startLabel = isPartialRemove ? "제거 시작" : "제거 시작";
+      ? t('uninstall.completeMessageHangul')
+      : t('uninstall.completeMessageBt')
+    : t('uninstall.completeMessage');
+    
+  const errorContext = t('uninstall.errorContext');
+  const startLabel = t('uninstall.startUninstall');
 
   const startUninstall = async (): Promise<void> => {
     statusRef.current = "uninstalling";
@@ -65,13 +71,13 @@ export default function UninstallPage() {
     } catch {
       statusRef.current = "error";
       setStatus("error");
-      setLogs(["ERROR: SSH 세션을 준비할 수 없습니다."]);
-      setErrors(["SSH 세션을 준비할 수 없습니다."]);
+      setLogs([`ERROR: ${t('install.sshAuthFailed') || "Unable to prepare SSH session."}`]);
+      setErrors([t('install.sshAuthFailed') || "Unable to prepare SSH session."]);
       return;
     }
 
     if (isPartialRemove) {
-      setCurrentStep(removeTarget === "hangul" ? "한글 입력 엔진 제거" : "블루투스 도우미 제거");
+      setCurrentStep(removeTarget === "hangul" ? t('uninstall.titleHangul') : t('uninstall.titleBt'));
       setProgress(20);
       try {
         const res = await fetch("/api/manage/remove", {
@@ -84,7 +90,7 @@ export default function UninstallPage() {
         setLogs(nextLogs);
 
         if (!res.ok || data.success !== true) {
-          const message = data.error ?? "제거 중 오류가 발생했습니다.";
+          const message = data.error ?? t('common.error');
           const errLine = `ERROR: ${message}`;
           setErrors([errLine]);
           setLogs((prev) => [...prev, errLine]);
@@ -98,7 +104,7 @@ export default function UninstallPage() {
         statusRef.current = "complete";
         setStatus("complete");
       } catch {
-        const errLine = "ERROR: 제거 요청 중 서버 오류가 발생했습니다.";
+        const errLine = `ERROR: ${t('common.error')}`;
         setErrors([errLine]);
         setLogs([errLine]);
         statusRef.current = "error";
@@ -156,8 +162,8 @@ export default function UninstallPage() {
         setLogs((prev) => [...prev, errLine]);
         setErrors((prev) => [...prev, errLine]);
       } catch {
-        setLogs((prev) => [...prev, "ERROR: 연결이 끊어졌습니다."]);
-        setErrors((prev) => [...prev, "연결이 끊어졌습니다."]);
+        setLogs((prev) => [...prev, `ERROR: ${t('common.error')}`]);
+        setErrors((prev) => [...prev, t('common.error')]);
       }
       statusRef.current = "error";
       setStatus("error");
@@ -168,8 +174,8 @@ export default function UninstallPage() {
       if (statusRef.current === "uninstalling") {
         statusRef.current = "error";
         setStatus("error");
-        setLogs((prev) => [...prev, "ERROR: SSE 연결이 끊어졌습니다."]);
-        setErrors((prev) => [...prev, "SSE 연결이 끊어졌습니다."]);
+        setLogs((prev) => [...prev, `ERROR: ${t('common.error')}`]);
+        setErrors((prev) => [...prev, t('common.error')]);
       }
       es.close();
     };
@@ -181,47 +187,47 @@ export default function UninstallPage() {
         <div>
           <h1
             className="text-[32px] font-bold tracking-tight"
-            style={{ color: "#000000" }}
+            style={{ color: "var(--text-primary)" }}
           >
             {pageTitle}
           </h1>
-          <p className="text-[15px] mt-2 font-medium" style={{ color: "#666666" }}>
+          <p className="text-[15px] mt-2 font-medium" style={{ color: "var(--text-muted)" }}>
             {pageDescription}
           </p>
         </div>
 
         <div className="stagger-1">
           <div className="space-y-8">
-            {/* 경고 */}
+            {/* Warning */}
               {status === "ready" && (
                 <div className="space-y-4">
                   <div
                     className="rounded-none animate-fade-in-up"
                     style={{
-                      backgroundColor: "#f6f6f6",
+                      backgroundColor: "var(--bg-secondary)",
                       padding: "20px 24px",
-                      borderLeft: "4px solid #000000",
-                      borderTop: "1.5px solid #000000",
-                      borderRight: "1.5px solid #000000",
-                      borderBottom: "1.5px solid #000000",
+                      borderLeft: "4px solid var(--border)",
+                      borderTop: "1.5px solid var(--border)",
+                      borderRight: "1.5px solid var(--border)",
+                      borderBottom: "1.5px solid var(--border)",
                     }}
                   >
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-[18px]">⚠️</span>
-                      <p className="text-[16px] font-bold" style={{ color: "#000000" }}>
+                      <p className="text-[16px] font-bold" style={{ color: "var(--text-primary)" }}>
                         {readyGuideTitle}
                       </p>
                     </div>
-                    <ul className="space-y-2.5 text-[15px]" style={{ color: "#333333" }}>
+                    <ul className="space-y-2.5 text-[15px]" style={{ color: "var(--text-secondary)" }}>
                       {(isPartialRemove ? [
-                        "선택한 기능에 해당하는 항목만 제거합니다",
-                        "다른 기능이 남아 있으면 공통 복구 경로는 유지됩니다",
-                        "REKOIT 디렉토리 안의 해당 기능 관련 파일도 함께 정리됩니다"
+                        t('uninstall.guideItemPartial1'),
+                        t('uninstall.guideItemPartial2'),
+                        t('uninstall.guideItemPartial3')
                       ] : [
-                        "설치된 항목을 자동 감지하여 해당 항목만 복구합니다",
-                        "양쪽 파티션(현재 + 비활성) 모두 정리됩니다",
-                        "펌웨어 업데이트 보호 장치도 함께 제거됩니다",
-                        "한글 폰트는 기기에 유지됩니다"
+                        t('uninstall.guideItemAll1'),
+                        t('uninstall.guideItemAll2'),
+                        t('uninstall.guideItemAll3'),
+                        t('uninstall.guideItemAll4')
                       ]).map((text, i) => (
                         <li key={i} className="flex items-start gap-3">
                           <span className="mt-2 w-1.5 h-1.5 rounded-full bg-current shrink-0" />
@@ -233,12 +239,12 @@ export default function UninstallPage() {
                 </div>
               )}
 
-              {/* 진행 */}
+              {/* Progress */}
               {status !== "ready" && (
                 <div className="space-y-8 py-4 animate-fade-in">
                   <div className="text-center space-y-2">
                     <div className="flex items-center justify-center gap-1.5 text-[22px] font-bold text-black">
-                      <span>{currentStep || (status === "complete" ? "제거 완료" : "준비 중")}</span>
+                      <span>{currentStep || (status === "complete" ? t('uninstall.completeStatus') : t('common.loading'))}</span>
                       {status === "uninstalling" && (
                         <span className="flex gap-1 ml-1">
                           <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
@@ -248,8 +254,8 @@ export default function UninstallPage() {
                       )}
                     </div>
                     <p className="text-[15px] font-medium opacity-50">
-                      {status === "uninstalling" ? "기기를 원본 상태로 되돌리고 있습니다." : 
-                       status === "complete" ? "모든 과정이 성공적으로 끝났습니다." : "오류가 발생했습니다."}
+                      {status === "uninstalling" ? t('uninstall.uninstallingStatus') : 
+                       status === "complete" ? t('complete.description') : t('common.error')}
                     </p>
                   </div>
                   <div className="w-full">
@@ -262,11 +268,11 @@ export default function UninstallPage() {
                     <TerminalOutput
                       lines={logs}
                       maxHeight="240px"
-                      title="Uninstall Log"
+                      title={t('uninstall.errorContext')}
                       showDownload={status === "complete" || status === "error"}
                       onDownload={() => {
                         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-                        const content = `=== REKOIT 제거 로그 ===\n기기: ${state.deviceModel}\nIP: ${state.ip}\n상태: ${status}\n\n${logs.join("\n")}`;
+                        const content = `=== REKOIT Removal Log ===\nDevice: ${state.deviceModel}\nIP: ${state.ip}\nStatus: ${status}\n\n${logs.join("\n")}`;
                         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
@@ -280,7 +286,7 @@ export default function UninstallPage() {
                 </div>
               )}
 
-              {/* 완료 */}
+              {/* Complete */}
               {status === "complete" && (
                 <div
                   className="p-8 bg-[#e6f4ea] border border-[#1e8e3e] animate-scale-in"
@@ -289,12 +295,12 @@ export default function UninstallPage() {
                   {!isPartialRemove && detected && (
                     <div className="mt-2 text-[15px] text-center font-medium opacity-60">
                       {detected.hangul && detected.bt
-                        ? "한글 입력 엔진과 블루투스 도우미 설치가 모두 정리됨"
+                        ? t('uninstall.detectedHangulBt')
                         : detected.hangul
-                        ? "한글 입력 엔진 구성이 정리됨"
+                        ? t('uninstall.detectedHangul')
                         : detected.bt
-                        ? "블루투스 도우미 설치가 정리됨"
-                        : "설치된 항목 없음"}
+                        ? t('uninstall.detectedBt')
+                        : t('uninstall.detectedNone')}
                     </div>
                   )}
                 </div>
@@ -304,27 +310,27 @@ export default function UninstallPage() {
                 <ErrorReport errors={errors} allLogs={logs} context={errorContext} />
               )}
 
-              {/* 에러 */}
+              {/* Error */}
               {status === "error" && (
                 <div className="space-y-4">
                   <div
                     className="p-6 bg-[#fce8e6] border border-[#d93025] animate-fade-in"
                   >
-                    <p className="text-[17px] font-bold" style={{ color: "#d93025" }}>오류가 발생했습니다.</p>
+                    <p className="text-[17px] font-bold" style={{ color: "#d93025" }}>{t('common.error')}</p>
                   </div>
                   <ErrorReport errors={errors} allLogs={logs} context={errorContext} />
                   <Button variant="primary" onClick={startUninstall} className="font-bold">
-                    재시도
+                    {t('common.retry')}
                   </Button>
                 </div>
               )}
           </div>
         </div>
 
-        {/* 네비게이션 */}
+        {/* Navigation */}
         <div className="flex justify-between pt-8 stagger-2">
           <Button variant="ghost" onClick={() => router.push(returnPath)} disabled={status === "uninstalling"} icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>}>
-            작업 선택으로
+            {t('uninstall.backToSelect')}
           </Button>
           {status === "ready" ? (
             <Button onClick={startUninstall} size="lg" className="px-16 font-bold">
@@ -332,7 +338,7 @@ export default function UninstallPage() {
             </Button>
           ) : status === "complete" ? (
             <Button onClick={() => router.push(returnPath)} size="lg" className="px-16 font-bold" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>}>
-              작업 선택으로
+              {t('uninstall.backToSelect')}
             </Button>
           ) : null}
         </div>

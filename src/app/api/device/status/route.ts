@@ -194,57 +194,57 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const checks: CheckResult[] = [
       {
         id: "hangul-font",
-        label: "한글 폰트",
+        label: "Korean Font",
         pass: hasFont,
-        detail: hasFont ? "설치됨" : "미설치",
+        detail: hasFont ? "Installed" : "Not Installed",
       },
       {
         id: "reboot-ready",
-        label: "재부팅 유지",
+        label: "Boot Persistence",
         pass: runtimeState === "clean"
           || (!hasHangulRuntime || values.HANGUL_ACTIVE === "active")
           && (!hasBtConfig || values.BT_RUNTIME === "yes"),
         detail: runtimeState === "clean"
-          ? "현재는 원본 상태"
-          : "활성 런타임이 현재 상태와 일치합니다.",
+          ? "Currently stock state"
+          : "Active runtime matches current state.",
       },
       {
         id: "inactive-slot",
-        label: "업데이트 슬롯 준비",
+        label: "Update Slot Readiness",
         pass: matchesInactiveSlot(runtimeState, values),
         detail: matchesInactiveSlot(runtimeState, values)
-          ? "비활성 슬롯이 현재 상태와 일치합니다."
-          : "비활성 슬롯 재준비가 필요합니다.",
+          ? "Inactive slot matches current state."
+          : "Inactive slot requires preparation.",
       },
       {
         id: "factory-guard",
-        label: "팩토리리셋 정리 경로",
+        label: "Factory Reset Cleanup",
         pass: runtimeState === "clean" || runtimeState === "hangul" || values.FACTORY_GUARD === "yes",
         detail: runtimeState === "clean"
-          ? "현재는 원본 상태"
+          ? "Currently stock state"
           : runtimeState === "hangul"
-            ? "현재 구성에서는 별도 가드가 필요하지 않습니다."
+            ? "No guard required for current configuration."
           : values.FACTORY_GUARD === "yes"
-            ? "정리 가드가 설치되어 있습니다."
-            : "정리 가드가 없습니다.",
+            ? "Cleanup guard is installed."
+            : "Cleanup guard is missing.",
       },
       {
         id: "hangul-daemon",
-        label: "한글 입력 데몬",
+        label: "Input Engine Daemon",
         pass: !hasHangulRuntime || values.HANGUL_ACTIVE === "active",
         detail: !hasHangulRuntime
-          ? "비활성"
+          ? "Inactive"
           : `state=${values.HANGUL_ACTIVE ?? "unknown"}`,
       },
       {
         id: "bt-config",
-        label: "블루투스 설치",
+        label: "Bluetooth Installation",
         pass: !hasBtConfig || values.BT_RUNTIME === "yes",
         detail: !hasBtConfig
-          ? "비활성"
+          ? "Inactive"
           : values.BT_RUNTIME === "yes"
-            ? "btnxpuart autoload 준비됨"
-            : "btnxpuart autoload 없음",
+            ? "btnxpuart autoload ready"
+            : "btnxpuart autoload missing",
       },
     ];
 
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         connected: false,
-        error: message || "상태를 읽을 수 없습니다.",
+        error: message || "Unable to read status.",
       },
       { status: 500 },
     );

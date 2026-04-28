@@ -4,15 +4,15 @@ interface SectionDividerProps {
   label: string;
 }
 
-// 섹션 구분 컴포넌트
-// 모던 필 스타일 라벨 디자인 + 좌측 액센트 바
+// Section divider component
+// Modern Pill-style label design + left accent bar
 export default function SectionDivider({
   label,
 }: SectionDividerProps): ReactNode {
   return (
     <div style={{ paddingTop: "4px", paddingBottom: "4px" }}>
       <div className="flex items-center gap-3">
-        {/* 좌측 액센트 바 (블랙) */}
+        {/* Left accent bar (black) */}
         <div
           className="flex-shrink-0"
           style={{

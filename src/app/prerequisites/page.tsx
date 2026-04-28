@@ -8,6 +8,7 @@ import ProgressBar from "@/components/ProgressBar";
 import StatusCheck from "@/components/StatusCheck";
 import { useSetup } from "@/lib/store";
 import { useGuard } from "@/lib/useGuard";
+import { useTranslation } from "@/lib/i18n";
 
 interface Tool {
   name: string;
@@ -42,6 +43,7 @@ interface PrerequisitesResponse {
 }
 
 export default function PrerequisitesPage() {
+  const { t } = useTranslation();
   const allowed = useGuard();
   const router = useRouter();
   const { state } = useSetup();
@@ -49,7 +51,7 @@ export default function PrerequisitesPage() {
   const [allReady, setAllReady] = useState(false);
   const [checking, setChecking] = useState(true);
   const [platformLabel, setPlatformLabel] = useState("");
-  const [packageManagerLabel, setPackageManagerLabel] = useState("패키지 매니저");
+  const [packageManagerLabel, setPackageManagerLabel] = useState(t('prerequisites.packageManagerLabel') || "Package Manager");
   const [packageManagerInstalled, setPackageManagerInstalled] = useState(false);
   const [packageManagerHint, setPackageManagerHint] = useState("");
   const [packageManagerActionLabel, setPackageManagerActionLabel] = useState<string | null>(null);
@@ -239,20 +241,20 @@ export default function PrerequisitesPage() {
             className="text-[36px] font-bold leading-tight"
             style={{ color: "#000000" }}
           >
-            사전 준비
+            {t('prerequisites.title')}
           </h1>
           <p
             className="mt-3 text-[16px] font-medium"
             style={{ color: "#666666" }}
           >
-            {platformLabel ? `${platformLabel}에서 설치를 진행하기 위해 필요한 도구들을 확인합니다.` : "설치 진행을 위해 필요한 도구들을 확인합니다."}
+            {platformLabel ? t('prerequisites.descriptionWithPlatform', { platform: platformLabel }) : t('prerequisites.description')}
           </p>
         </div>
 
         <div className="stagger-1">
           <div className="operator-card operator-card-strong" style={{ padding: "16px 20px", border: "1.5px solid #000000" }}>
             <div className="space-y-5">
-              {/* 경고 알림 (필요 시) */}
+              {/* Warning (if needed) */}
               {shouldShowManagerWarning && !checking && (
                 <div
                   className="rounded-none"
@@ -268,7 +270,7 @@ export default function PrerequisitesPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[18px]">⚠️</span>
                     <p className="text-[16px] font-bold" style={{ color: "#000000" }}>
-                      {packageManagerLabel} 확인 필요
+                      {t('welcome.checkBeforeConnecting')}
                     </p>
                   </div>
                   <p className="text-[14px] font-medium" style={{ color: "#333333" }}>
@@ -281,16 +283,16 @@ export default function PrerequisitesPage() {
                       size="sm"
                       className="mt-3"
                     >
-                      {bootstrapActionLoading ? "실행 중..." : packageManagerActionLabel}
+                      {bootstrapActionLoading ? t('common.loading') : packageManagerActionLabel}
                     </Button>
                   )}
                 </div>
               )}
 
-              {/* 체크리스트 영역 */}
+              {/* Checklist area */}
               <div className="space-y-3">
                 <label className="block text-[13px] font-bold uppercase tracking-wider" style={{ color: "#000000" }}>
-                  도구 확인 상태
+                  {t('prerequisites.manualInstallTitle')}
                 </label>
                 <div
                   className="rounded-none overflow-hidden"
@@ -313,7 +315,7 @@ export default function PrerequisitesPage() {
                     if (toolInstall) {
                       if (toolInstall.status === "installing") {
                         status = "checking";
-                        detail = "설치 중...";
+                        detail = t('prerequisites.statusChecking');
                       } else if (toolInstall.status === "installed") {
                         status = "pass";
                       } else if (toolInstall.status === "failed") {
@@ -334,11 +336,11 @@ export default function PrerequisitesPage() {
                 </div>
               </div>
 
-              {/* 수동 설치 안내 (필요 시) */}
+              {/* Manual installation guide (if needed) */}
               {shouldShowManualCommand && (
                 <div className="space-y-3">
                   <label className="block text-[13px] font-bold uppercase tracking-wider" style={{ color: "#000000" }}>
-                    수동 설치 명령어
+                    {t('prerequisites.manualInstallTitle')}
                   </label>
                   <div
                     className="rounded-none"
@@ -353,55 +355,55 @@ export default function PrerequisitesPage() {
                     </pre>
                     <div className="flex items-center gap-3 mt-3">
                       <Button variant="secondary" size="sm" onClick={copyManualCommand}>
-                        명령 복사
+                        {t('prerequisites.copyCommand')}
                       </Button>
                       {copyState === "done" && (
-                        <span className="text-[13px] font-bold" style={{ color: "#000000" }}>✓ 복사됨</span>
+                        <span className="text-[13px] font-bold" style={{ color: "#000000" }}>✓ {t('prerequisites.copied')}</span>
                       )}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* 설치 진행 바 */}
+              {/* Installation progress bar */}
               {installStatus === "installing" && (
                 <div className="pt-2">
                   <ProgressBar
                     progress={installProgress}
                     status="active"
-                    currentStep="도구 설치 중..."
+                    currentStep={t('prerequisites.statusChecking')}
                   />
                 </div>
               )}
 
-              {/* 액션 버튼 (설치 필요 시) */}
+              {/* Action buttons (if installation required) */}
               {!checking && autoInstallSupported && hasMissingTools && installStatus === "idle" && (
                 <Button onClick={startInstall} className="w-full font-bold" size="lg">
-                  필요한 도구 자동 설치
+                  {t('prerequisites.autoInstallButton')}
                 </Button>
               )}
 
-              {/* 완료 상태 표시 */}
+              {/* Completion status */}
               {allReady && !checking && (
                 <div
                   className="text-center py-4 font-bold border-t-2 border-b-2 border-black"
                   style={{ backgroundColor: "#ffffff", color: "#000000" }}
                 >
-                  ✓ 모든 도구가 준비되었습니다.
+                  ✓ {t('prerequisites.statusPass')}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* 하단 네비게이션 */}
+        {/* Bottom navigation */}
         <div className="flex justify-between pt-6 stagger-2">
           <Button
             variant="ghost"
             onClick={() => router.push("/")}
             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>}
           >
-            처음으로
+            {t('common.first')}
           </Button>
           <div className="flex gap-3">
             {!allReady && installStatus !== "installing" && (
@@ -410,7 +412,7 @@ export default function PrerequisitesPage() {
                 onClick={refreshTools}
                 loading={checking}
               >
-                다시 확인
+                {t('common.retry')}
               </Button>
             )}
             <Button
@@ -419,7 +421,7 @@ export default function PrerequisitesPage() {
               size="lg"
               className="px-16"
             >
-              다음
+              {t('common.next')}
             </Button>
           </div>
         </div>

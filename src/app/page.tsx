@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import StepIndicator from "@/components/StepIndicator";
 import Button from "@/components/Button";
 import { useSetup } from "@/lib/store";
+import { useTranslation } from "@/lib/i18n";
 import Image from "next/image";
 import logoImg from "./rekoit.png";
 
 export default function WelcomePage() {
   const router = useRouter();
   const { state, setState, isLoaded } = useSetup();
+  const { t } = useTranslation();
   const [ip, setIp] = useState("10.11.99.1");
   const [password, setPassword] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -34,7 +36,7 @@ export default function WelcomePage() {
     setPinging(true);
     setPingResult(null);
     try {
-      // 단순 Ping이 아닌 실제 SSH 인증까지 테스트하는 /api/ssh/test 사용
+      // Use /api/ssh/test to test actual SSH authentication, not just a simple ping
       const res = await fetch("/api/ssh/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,7 +89,7 @@ export default function WelcomePage() {
             className="mt-3 text-[16px] font-medium max-w-md"
             style={{ color: "#666666" }}
           >
-            reMarkable 기기에 한글 입력 엔진과 블루투스 도우미를 설치합니다. 시작을 위해 USB 연결과 SSH 정보를 확인하세요.
+            {t('welcome.description')}
           </p>
         </div>
 
@@ -99,7 +101,7 @@ export default function WelcomePage() {
                   className="block text-[13px] font-bold mb-1.5 uppercase tracking-wider"
                   style={{ color: "#000000" }}
                 >
-                  IP 주소
+                  {t('welcome.ipAddress')}
                 </label>
                 <input
                   type="text"
@@ -125,7 +127,7 @@ export default function WelcomePage() {
                   className="block text-[13px] font-bold mb-1.5 uppercase tracking-wider"
                   style={{ color: "#000000" }}
                 >
-                  SSH 비밀번호
+                  {t('welcome.sshPassword')}
                 </label>
                 <div className="relative">
                   <input
@@ -143,7 +145,7 @@ export default function WelcomePage() {
                       color: "#000000",
                       padding: "12px 16px",
                     }}
-                    placeholder="비밀번호"
+                    placeholder={t('welcome.sshPassword')}
                   />
                   <button
                     type="button"
@@ -170,7 +172,7 @@ export default function WelcomePage() {
                   className="mt-2 text-[12px] font-medium"
                   style={{ color: "#666666" }}
                 >
-                  Settings &gt; Help &gt; Copyrights and licenses &gt; General Information &gt; GPLv3 Compliance에서 확인할 수 있습니다.
+                  {t('welcome.sshPasswordHelp')}
                 </p>
               </div>
 
@@ -188,17 +190,17 @@ export default function WelcomePage() {
                 <div className="flex items-center gap-2 mb-2.5">
                   <span className="text-[18px]">⚠️</span>
                   <p className="text-[16px] font-bold" style={{ color: "#000000" }}>
-                    연결 전에 확인하세요
+                    {t('welcome.checkBeforeConnecting')}
                   </p>
                 </div>
                 <ul className="space-y-2 text-[15px]" style={{ color: "#333333" }}>
                   <li className="flex items-start gap-3">
                     <span className="mt-2 w-1.5 h-1.5 rounded-full bg-current shrink-0" />
-                    <span className="font-medium">기기와 SSH 연결이 가능해야 합니다. (USB 또는 무선)</span>
+                    <span className="font-medium">{t('welcome.checkSshPossible')}</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="mt-2 w-1.5 h-1.5 rounded-full bg-current shrink-0" />
-                    <span className="font-medium">기기에서 개발자 모드와 SSH가 활성화되어 있어야 합니다.</span>
+                    <span className="font-medium">{t('welcome.checkDevModeEnabled')}</span>
                   </li>
                 </ul>
               </div>
@@ -219,7 +221,7 @@ export default function WelcomePage() {
                   transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}
               >
-                {isReachable ? "SSH 연결 확인 완료 ✓" : "SSH 연결 확인"}
+                {isReachable ? t('welcome.sshCheckSuccess') : t('welcome.sshCheckButton')}
               </Button>
 
               {pingResult && !isReachable && (
@@ -232,7 +234,7 @@ export default function WelcomePage() {
                     fontWeight: "500"
                   }}
                 >
-                  연결할 수 없습니다. USB 케이블과 SSH 비밀번호를 다시 확인하세요.
+                  {t('welcome.connectionFailed')}
                 </div>
               )}
             </div>
@@ -246,9 +248,10 @@ export default function WelcomePage() {
             size="lg"
             className="px-16"
           >
-            다음
+            {t('common.next')}
           </Button>
         </div>
+
       </div>
     </div>
   );

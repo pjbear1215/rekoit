@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/lib/i18n";
 import StepIndicator from "@/components/StepIndicator";
 import Button from "@/components/Button";
 import BluetoothPowerControl from "@/components/BluetoothPowerControl";
@@ -18,19 +19,20 @@ interface VerifyResult {
   detail: string;
 }
 
-function getInstallSummary(installHangul: boolean, installBtKeyboard: boolean): string {
+function getInstallSummary(installHangul: boolean, installBtKeyboard: boolean, t: any): string {
   if (installHangul && installBtKeyboard) {
-    return "한글 입력 엔진과 블루투스 도우미 설치를 확인합니다.";
+    return t('complete.summaryBoth');
   }
   if (installHangul) {
-    return "한글 입력 엔진 설정을 확인합니다.";
+    return t('complete.summaryHangulOnly');
   }
-  return "블루투스 도우미 설치를 확인합니다.";
+  return t('complete.summaryBtOnly');
 }
 
 export default function CompletePage() {
   const allowed = useGuard();
   const router = useRouter();
+  const { t } = useTranslation();
   const { state, setState } = useSetup();
   const [results, setResults] = useState<VerifyResult[]>([]);
   const [verifying, setVerifying] = useState(true);
@@ -48,8 +50,8 @@ export default function CompletePage() {
   const fontInputRef = useRef<HTMLInputElement>(null);
 
   const placeholderChecks = [
-    ...(installedState.hangul ? ["한글 폰트", "한글 입력 데몬"] : []),
-    ...(installedState.bt ? ["블루투스"] : []),
+    ...(installedState.hangul ? [t('complete.checkFont'), t('complete.checkDaemon')] : []),
+    ...(installedState.bt ? [t('complete.checkBt')] : []),
   ];
 
   const loadBtDevices = useCallback(async () => {
@@ -76,7 +78,7 @@ export default function CompletePage() {
     if (!allowed) return;
     const verify = async () => {
       try {
-        // 1. 기기 가용성 재확인 (상태 동기화)
+        // 1. Re-verify device availability (sync status)
         const availabilityRes = await fetch("/api/manage/availability", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -93,7 +95,7 @@ export default function CompletePage() {
           isBtInstalled = availData.btInstalled;
         }
 
-        // 2. 구성 요소 검증
+        // 2. Component verification
         const res = await fetch("/api/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -105,28 +107,37 @@ export default function CompletePage() {
           }),
         });
         const data = await res.json();
-        setResults(data.results);
+        
+        // Translate verification names if needed
+        const translatedResults = data.results.map((r: any) => {
+          let name = r.name;
+          if (name === "Korean Font") name = t('complete.checkFont');
+          if (name === "Input Daemon") name = t('complete.checkDaemon');
+          if (name === "Bluetooth") name = t('complete.checkBt');
+          return { ...r, name };
+        });
+        setResults(translatedResults);
 
-        // 3. 블루투스 기기 목록 로드
+        // 3. Load Bluetooth device list
         if (isBtInstalled) {
           void loadBtDevices();
         }
       } catch {
         setResults([{
-          name: "검증 실패",
+          name: t('complete.verifyFailed'),
           pass: false,
-          detail: "서버에 연결할 수 없습니다.",
+          detail: t('complete.verifyFailedDetail'),
         }]);
       } finally {
         setVerifying(false);
       }
     };
     verify();
-  }, [allowed, state.installBtKeyboard, state.installHangul, state.ip, state.password, loadBtDevices]);
+  }, [allowed, state.installBtKeyboard, state.installHangul, state.ip, state.password, loadBtDevices, t]);
 
   const handleBtRemove = useCallback(
     async (address: string, name: string) => {
-      if (!confirm(`'${name}' 기기를 삭제하시겠습니까?`)) return;
+      if (!confirm(t('complete.removeConfirm', { name }))) return;
       setBtRemovingAddr(address);
       try {
         const res = await fetch("/api/bluetooth/remove", {
@@ -138,15 +149,15 @@ export default function CompletePage() {
         if (data.success) {
           setBtDevices(prev => prev.filter(d => d.address !== address));
         } else {
-          alert(`삭제 실패: ${data.error ?? "알 수 없는 오류"}`);
+          alert(t('complete.removeFailed', { error: data.error ?? "Unknown error" }));
         }
       } catch {
-        alert("서버 오류가 발생했습니다.");
+        alert(t('complete.serverError'));
       } finally {
         setBtRemovingAddr(null);
       }
     },
-    [state.ip, state.password],
+    [state.ip, state.password, t],
   );
 
   const handleFontUpload = useCallback(
@@ -171,23 +182,23 @@ export default function CompletePage() {
         if (data.success) {
           setFontResult(data.message);
         } else {
-          setFontResult(`실패: ${data.error}`);
+          setFontResult(t('complete.fontUploadFailed', { error: data.error }));
         }
       } catch {
-        setFontResult("서버 오류");
+        setFontResult(t('complete.serverError'));
       } finally {
         setFontUploading(false);
         if (fontInputRef.current) fontInputRef.current.value = "";
       }
     },
-    [state.ip, state.password],
+    [state.ip, state.password, t],
   );
 
   const allPassed = results.length > 0 && results.every((r) => r.pass);
   const hasFail = results.length > 0 && results.some((r) => !r.pass);
   const failedCheckNames = results.filter((r) => !r.pass).map((r) => r.name);
-  const hasHangulFail = failedCheckNames.some((name) => name === "한글 폰트" || name === "한글 입력 데몬");
-  const hasBtFail = failedCheckNames.includes("블루투스");
+  const hasHangulFail = failedCheckNames.some((name) => name === t('complete.checkFont') || name === t('complete.checkDaemon'));
+  const hasBtFail = failedCheckNames.includes(t('complete.checkBt'));
   const returnPath = state.ip && state.password ? "/entry" : "/";
 
   if (!allowed) return null;
@@ -202,20 +213,20 @@ export default function CompletePage() {
             className="text-[36px] font-bold leading-tight"
             style={{ color: "#000000" }}
           >
-            {verifying ? "확인 중..." : allPassed ? "설치 완료" : "설치 결과"}
+            {verifying ? t('complete.verifying') : allPassed ? t('complete.title') : t('complete.resultTitle')}
           </h1>
           <p
             className="mt-3 text-[17px] font-medium"
             style={{ color: "#666666" }}
           >
-            {getInstallSummary(installedState.hangul, installedState.bt)}
+            {getInstallSummary(installedState.hangul, installedState.bt, t)}
           </p>
         </div>
 
         <div className="stagger-1">
           <div className="operator-card operator-card-strong" style={{ padding: "20px 24px", border: "1.5px solid #000000" }}>
             <div className="space-y-8">
-              {/* 검증 상태 */}
+              {/* Verification status */}
               <div
                 className="border border-black/10 overflow-hidden bg-black/[0.02]"
               >
@@ -235,86 +246,86 @@ export default function CompletePage() {
                 )}
               </div>
 
-              {/* 결과 메시지 */}
+              {/* Result message */}
               {!verifying && allPassed && (
                 <div
                   className="text-center py-8 bg-[#e6f4ea] border border-[#1e8e3e] animate-scale-in"
                 >
                   <p className="text-[20px] font-bold" style={{ color: "#1e8e3e" }}>
-                    설치가 완료되었습니다
+                    {t('complete.title')}
                   </p>
                   <div className="text-[15px] mt-2 font-medium space-y-1" style={{ color: "rgba(0,0,0,0.6)" }}>
                     {installedState.hangul && (
                       <>
-                        <p>Type Folio나 블루투스 키보드에서 <span className="font-bold text-black">Shift + Space</span> 또는 <span className="font-bold text-black">오른쪽 Alt</span> 키로 한/영을 전환하세요.</p>
+                        <p>{t('complete.languageToggleGuide')}</p>
                         <div className="mt-4 p-4 bg-white/50 border border-black/5 text-left space-y-2">
-                          <p className="text-[13px] font-bold text-black uppercase tracking-wider mb-2">특수 기호 입력 안내</p>
+                          <p className="text-[13px] font-bold text-black uppercase tracking-wider mb-2">{t('complete.specialCharGuideTitle')}</p>
                           <p className="text-[14px] leading-relaxed">
                             <span className="shrink-0 mr-1.5">•</span>
-                            <span className="font-bold text-black">{"[ ] { }"}</span> 키는 모든 모드에서 괄호 입력으로 우선 동작합니다.
+                            {t('complete.specialCharGuide1')}
                           </p>
                           <p className="text-[14px] leading-relaxed">
                             <span className="shrink-0 mr-1.5">•</span>
-                            Type Folio의 기호(<span className="font-mono">´ ` ~ ¨</span>) 자리는 이제 <span className="font-bold text-black">{"[ { ] }"}</span> 가 입력됩니다.
+                            {t('complete.specialCharGuide2')}
                           </p>
                           <p className="text-[14px] leading-relaxed">
                             <span className="shrink-0 mr-1.5">•</span>
-                            백틱(<span className="font-mono">`</span>)은 <span className="font-bold text-black">Ctrl + Shift + [</span>, 물결(<span className="font-mono">~</span>)은 <span className="font-bold text-black">Ctrl + Shift + ]</span> 단축키를 사용하세요.
+                            {t('complete.specialCharGuide3')}
                           </p>
                         </div>
                       </>
                     )}
                     {installedState.bt && (
-                      <p className="pt-2">블루투스 키보드를 켜면 자동으로 연결을 시도합니다.</p>
+                      <p className="pt-2">{t('complete.btAutoReconnectGuide')}</p>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* 실패 시 안내 */}
+              {/* Guidance on failure */}
               {!verifying && hasFail && (
                 <div
                   className="p-6 bg-[#fce8e6] border border-[#d93025] animate-fade-in"
                 >
                   <p className="font-bold text-[17px]" style={{ color: "#d93025" }}>
-                    일부 항목에서 문제가 발견되었습니다
+                    {t('complete.problemsDetected')}
                   </p>
                   <ul className="mt-3 space-y-2 text-[14px] font-medium" style={{ color: "rgba(0,0,0,0.7)" }}>
                     {hasHangulFail && (
-                      <li>한글 입력 엔진 문제가 있으면 기기를 재시작한 뒤 다시 확인하세요.</li>
+                      <li>{t('complete.hangulIssueGuide')}</li>
                     )}
                     {hasHangulFail && (
-                      <li>데몬 문제 시 <code className="text-[12px] font-mono px-1.5 py-0.5 bg-black text-white">systemctl restart hangul-daemon</code></li>
+                      <li>{t('complete.daemonIssueGuide')}</li>
                     )}
                     {hasBtFail && (
-                      <li>블루투스 도우미 설치 문제가 있으면 기기를 재시작한 뒤 다시 확인하세요.</li>
+                      <li>{t('complete.btIssueGuide')}</li>
                     )}
-                    <li>&quot;처음으로&quot;를 눌러 설치를 다시 진행해 보세요.</li>
+                    <li>{t('complete.startOverGuide')}</li>
                   </ul>
                 </div>
               )}
 
-              {/* 빠른 관리 도구 */}
+              {/* Quick management tools */}
               {!verifying && (
                 <div className="space-y-8 border-t border-black/10 pt-8">
                   {installedState.hangul && (
                     <div className="space-y-4">
-                      <SectionDivider label="키보드 레이아웃" />
+                      <SectionDivider label={t('manage.keyboardTitle')} />
                       <KeyboardSwapControl ip={state.ip} password={state.password} />
                     </div>
                   )}
 
                   {installedState.bt && (
                     <div className="space-y-6">
-                      <SectionDivider label="블루투스 제어" />
+                      <SectionDivider label={t('complete.checkBt')} />
                       
-                      {/* 등록된 기기 목록 */}
+                      {/* Registered device list */}
                       <div className="space-y-3">
-                        <label className="block text-[13px] font-bold uppercase tracking-wider px-1">등록된 기기</label>
+                        <label className="block text-[13px] font-bold uppercase tracking-wider px-1">{t('manage.registeredDevices')}</label>
                         <div className="space-y-2">
                           {btLoading && btDevices.length === 0 ? (
                             <div className="p-4 bg-black/[0.03] border border-black/5 text-center text-[13px] text-muted animate-pulse">
-                              기기 목록을 불러오는 중...
+                              {t('manage.loadingDevices')}
                             </div>
                           ) : btDevices.length > 0 ? (
                             btDevices.map((device) => (
@@ -325,7 +336,7 @@ export default function CompletePage() {
                                 <div className="flex items-center gap-3">
                                   <div className={`w-2.5 h-2.5 rounded-full ${device.connected ? "bg-green-500" : "bg-black/20"}`} />
                                   <div>
-                                    <p className="text-[15px] font-bold text-black">{device.name || "이름 없는 기기"}</p>
+                                    <p className="text-[15px] font-bold text-black">{device.name || t('manage.unnamedDevice')}</p>
                                     <p className="text-[12px] font-mono opacity-50">{device.address}</p>
                                   </div>
                                 </div>
@@ -336,13 +347,13 @@ export default function CompletePage() {
                                   loading={btRemovingAddr === device.address}
                                   className="font-bold border-none bg-black/5 hover:bg-red-50 hover:text-red-600 transition-colors"
                                 >
-                                  삭제
+                                  {t('common.delete') || "Delete"}
                                 </Button>
                               </div>
                             ))
                           ) : (
                             <div className="p-8 bg-black/[0.03] border border-black/5 text-center">
-                              <p className="text-[14px] text-muted font-medium">등록된 블루투스 기기가 없습니다.</p>
+                              <p className="text-[14px] text-muted font-medium">{t('manage.noDevices')}</p>
                             </div>
                           )}
                         </div>
@@ -350,8 +361,8 @@ export default function CompletePage() {
 
                       <div className="flex items-center justify-between p-4 bg-black/[0.03] border border-black/5">
                         <div className="min-w-0">
-                          <p className="text-[16px] font-bold text-black">새 키보드 연결</p>
-                          <p className="text-[13px] font-medium opacity-50 mt-0.5">다른 키보드 연결이 필요할 때 사용하세요.</p>
+                          <p className="text-[16px] font-bold text-black">{t('manage.connectNew')}</p>
+                          <p className="text-[13px] font-medium opacity-50 mt-0.5">{t('complete.connectNewHelp')}</p>
                         </div>
                         <Button
                           variant="secondary"
@@ -359,7 +370,7 @@ export default function CompletePage() {
                           onClick={() => router.push("/bluetooth?mode=manage")}
                           className="font-bold"
                         >
-                          설정 열기
+                          {t('manage.openSetup')}
                         </Button>
                       </div>
                       <BluetoothPowerControl ip={state.ip} password={state.password} />
@@ -368,9 +379,9 @@ export default function CompletePage() {
 
                   {installedState.hangul && (
                     <div className="space-y-4">
-                      <SectionDivider label="폰트 관리" />
+                      <SectionDivider label={t('manage.fontTitle')} />
                       <div className="flex items-center justify-between p-4 bg-black/[0.03] border border-black/5">
-                        <span className="text-[15px] font-bold">사용자 폰트 업로드</span>
+                        <span className="text-[15px] font-bold">{t('manage.fontUpload')}</span>
                         <input ref={fontInputRef} type="file" accept=".otf,.ttf" onChange={handleFontUpload} className="hidden" />
                         <Button
                           variant="secondary"
@@ -379,11 +390,11 @@ export default function CompletePage() {
                           loading={fontUploading}
                           className="font-bold"
                         >
-                          파일 선택
+                          {t('manage.fontSelect')}
                         </Button>
                       </div>
                       {fontResult && (
-                        <p className="text-[13px] font-bold px-1" style={{ color: fontResult.includes("실패") ? "#d93025" : "#1e8e3e" }}>
+                        <p className="text-[13px] font-bold px-1" style={{ color: fontResult.includes("Failed") || fontResult.includes("실패") ? "#d93025" : "#1e8e3e" }}>
                           {fontResult}
                         </p>
                       )}
@@ -393,8 +404,8 @@ export default function CompletePage() {
                   <DiagnosisPanel
                     ip={state.ip}
                     password={state.password}
-                    title="시스템 진단"
-                    subtitle="입력 엔진 동작 상태 점검"
+                    title={t('diagnose.logTitle')}
+                    subtitle={t('complete.diagSubtitle')}
                   />
                 </div>
               )}
@@ -402,13 +413,13 @@ export default function CompletePage() {
           </div>
         </div>
 
-        {/* 네비게이션 */}
+        {/* Navigation */}
         <div className="flex justify-between pt-4 stagger-2">
           <Button variant="ghost" onClick={() => router.push(returnPath)} disabled={verifying} icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>}>
-            처음으로
+            {t('complete.startOver')}
           </Button>
           <Button onClick={() => router.push("/manage")} disabled={verifying} size="lg" className="px-12 font-bold">
-            기기 관리로
+            {t('entry.goManage')}
           </Button>
         </div>
       </div>

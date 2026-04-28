@@ -11,7 +11,7 @@ export async function ensureSshSession(
   });
 
   if (!response.ok) {
-    let message = "SSH 세션 생성 실패";
+    let message = "SSH session creation failed";
     try {
       const data = (await response.json()) as { error?: string };
       if (data.error) {

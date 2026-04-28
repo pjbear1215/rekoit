@@ -121,7 +121,7 @@ const (
 	bluetoothBusType       = "0005"
 )
 
-// uinput 구조체
+// uinput struct
 type UinputSetup struct {
 	ID           InputID
 	Name         [80]byte
@@ -269,13 +269,15 @@ func makeKeyIndexTable(pairs ...keyIndexPair) [maxKeyCode + 1]int8 {
 	return table
 }
 
-// 키맵 디스크 패칭: libepaper.so의 KEY_Q 엔트리를 직접 수정
-// xochitl은 새 evdev 디바이스 감지 시 핸들러를 생성하며,
-// 이때 디스크의 키맵 데이터를 읽어 내부 조회 테이블을 구축함
-// → 디바이스를 재생성하면 패치된 키맵이 적용됨
+// Keymap patching: Modify the KEY_Q entry in libepaper.so (tmpfs-backed bind mount)
+// xochitl creates a handler when a new evdev device is detected,
+// at which time it reads the keymap data from the file and builds an internal lookup table.
+// To ensure system safety and non-destructiveness, we modify a copy in tmpfs
+// that is bind-mounted over the original file.
+// -> Recreating the device applies the patched keymap.
 type KeymapPatcher struct {
-	fileOffsets []int64 // KEY_Q 엔트리의 파일 오프셋 목록
-	diskPath    string  // libepaper.so 디스크 경로
+	fileOffsets []int64 // List of file offsets for KEY_Q entries
+	diskPath    string  // Path to libepaper.so (usually the bind mount target)
 	origUnicode uint16
 	origQtcode  uint32
 	keyEntries  map[uint32]keyPatchInfo
@@ -444,7 +446,7 @@ func (kp *KeymapPatcher) init() error {
 	kp.diskPath = "/usr/lib/plugins/platforms/libepaper.so"
 	backupPath := "/tmp/libepaper.so.original"
 
-	// KEY_Q plain 엔트리 시그니처: keycode=0x10, unicode='q', qtcode=Qt::Key_Q, mod=0
+	// KEY_Q plain entry signature: keycode=0x10, unicode='q', qtcode=Qt::Key_Q, mod=0
 	signature := []byte{0x10, 0x00, 0x71, 0x00, 0x51, 0x00, 0x00, 0x00, 0x00}
 
 	offsets, err := kp.findSignatureOffsets(signature)
@@ -455,9 +457,9 @@ func (kp *KeymapPatcher) init() error {
 	kp.rangeReady = false
 
 	if len(kp.fileOffsets) == 0 {
-		// 이전 세션에서 패치된 상태일 수 있음 → 백업에서 복원
+		// Might be already patched in a previous session -> restore from backup
 		if _, err := os.Stat(backupPath); err == nil {
-			log.Println("[PATCHER] 이전 패치 감지, 백업에서 복원 중...")
+			log.Println("[PATCHER] Previous patch detected, restoring from backup...")
 			kp.close()
 			if err := copyFile(backupPath, kp.diskPath); err != nil {
 				return fmt.Errorf("backup restore failed: %w", err)
@@ -475,20 +477,20 @@ func (kp *KeymapPatcher) init() error {
 		return fmt.Errorf("KEY_Q entry not found in %s", kp.diskPath)
 	}
 
-	// 백업 생성 (없으면)
+	// Create backup (if not exists)
 	if _, err := os.Stat(backupPath); err != nil {
 		if err := copyFile(kp.diskPath, backupPath); err != nil {
-			log.Printf("[PATCHER] 백업 생성 실패: %v", err)
+			log.Printf("[PATCHER] Failed to create backup: %v", err)
 		} else {
-			log.Printf("[PATCHER] 백업 생성: %s", backupPath)
+			log.Printf("[PATCHER] Backup created: %s", backupPath)
 		}
 	}
 
-	// 원본 값 (항상 동일)
+	// Original values (always consistent)
 	kp.origUnicode = 0x0071     // 'q'
 	kp.origQtcode = 0x00000051 // Qt::Key_Q
 
-	log.Printf("[PATCHER] %s 에서 %d개의 KEY_Q 엔트리 발견", kp.diskPath, len(kp.fileOffsets))
+	log.Printf("[PATCHER] Found %d KEY_Q entries in %s", len(kp.fileOffsets), kp.diskPath)
 	for i, fOff := range kp.fileOffsets {
 		log.Printf("  [%d] fileOffset=0x%x", i, fOff)
 	}
@@ -522,9 +524,9 @@ func (kp *KeymapPatcher) writeToDisk(unicode uint16, qtcode uint32) error {
 
 func (kp *KeymapPatcher) restoreDisk() {
 	if err := kp.writeToDisk(kp.origUnicode, kp.origQtcode); err != nil {
-		log.Printf("[PATCHER] 디스크 복원 실패: %v", err)
+		log.Printf("[PATCHER] Failed to restore file: %v", err)
 	} else {
-		log.Printf("[PATCHER] 디스크 원본 복원 완료")
+		log.Printf("[PATCHER] Original file restored")
 	}
 }
 
@@ -746,7 +748,7 @@ func (kp *KeymapPatcher) restoreKeyEntry(code uint16, mod byte) error {
 	return kp.writeKeyEntryToDisk(code, mod, entry.origUnicode, entry.origQtcode)
 }
 
-// 두벌식 자판 매핑
+// Dubeolsik (standard 2-set) keyboard mapping
 var choseongMap = makeKeyIndexTable(
 	keyIndexPair{KEY_R, 0}, keyIndexPair{KEY_E, 3}, keyIndexPair{KEY_Q, 7},
 	keyIndexPair{KEY_T, 9}, keyIndexPair{KEY_D, 11}, keyIndexPair{KEY_W, 12},
@@ -1075,8 +1077,8 @@ func (d *Daemon) waitForUinputReady(timeout time.Duration) error {
 	return fmt.Errorf("xochitl did not open %q within %s", virtualKeyboardName, timeout)
 }
 
-// recreateUinput: uinput 디바이스를 파괴하고 재생성
-// xochitl이 새 핸들러를 생성하며, 이때 디스크의 (패치된) 키맵을 로드
+// recreateUinput: destroy and recreate uinput device
+// xochitl creates a new handler, at which time it loads the (patched) keymap from disk
 func (d *Daemon) recreateUinput() error {
 	if d.uinputFd != nil {
 		_ = ioctl(d.uinputFd.Fd(), UI_DEV_DESTROY, 0)
@@ -2012,7 +2014,7 @@ func (d *Daemon) outputComposeChar(char rune, backspaces int, batchReplace bool,
 	return nil
 }
 
-// outputChar: 일반 출력 캐시(LRU)를 사용해 문자를 전달
+// outputChar: Deliver characters using the general output cache (LRU)
 func (d *Daemon) outputChar(char rune, backspaces int, batchReplace bool) error {
 	if d.patcher == nil {
 		return fmt.Errorf("patcher not initialized")
@@ -2034,13 +2036,13 @@ func (d *Daemon) outputChar(char rune, backspaces int, batchReplace bool) error 
 	return nil
 }
 
-// restoreKeymap: 영문 모드/단축키 모드 전환 시 원본 키맵 복원
+// restoreKeymap: Restore original keymap when switching to English mode/shortcut mode
 func (d *Daemon) restoreKeymap() {
 	if err := d.restoreOutputLayout(); err != nil {
-		log.Printf("[RESTORE] 원본 키맵 복원 오류: %v", err)
+		log.Printf("[RESTORE] Error restoring original keymap: %v", err)
 		return
 	}
-	log.Printf("[RESTORE] 원본 키맵 복원 완료")
+	log.Printf("[RESTORE] Original keymap restored")
 }
 
 func (d *Daemon) toggleKoreanMode() error {
@@ -2050,9 +2052,9 @@ func (d *Daemon) toggleKoreanMode() error {
 	d.restoreKeymap()
 	d.korean = !d.korean
 	if d.korean {
-		log.Println("모드: 한글")
+		log.Println("Mode: Korean")
 	} else {
-		log.Println("모드: 영문")
+		log.Println("Mode: English")
 	}
 	return nil
 }
@@ -2534,7 +2536,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 			ev.Code = KEY_CAPSLOCK
 		}
 	}
-	// Shift 상태 체크
+	// Shift state check
 	if ev.Code == KEY_LEFTSHIFT || ev.Code == KEY_RIGHTSHIFT {
 		d.shifted = (ev.Value != keyRelease)
 		if ev.Value == keyRelease {
@@ -2544,7 +2546,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 			}
 			return
 		}
-		// Ctrl 이나 Alt가 눌린 상황에서만 Shift를 그대로 전달 (시스템 단축키용)
+		// Pass Shift as-is only when Ctrl or Alt is pressed (for system shortcuts)
 		if d.ctrl_or_alt {
 			d.shiftForwarded = true
 			d.passthrough(ev)
@@ -2553,7 +2555,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		d.shiftForwarded = false
 		return
 	}
-	// Ctrl Alt 상태 체크
+	// Ctrl Alt state check
 	if ev.Code == KEY_LEFTCTRL || ev.Code == KEY_LEFTALT {
 		if ev.Value == keyPress {
 			d.ctrl_or_alt = true
@@ -2568,7 +2570,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		return
 	}
 
-	// Right Alt 한영 모드 전환
+	// Right Alt: toggle Korean mode
 	if ev.Code == KEY_RIGHTALT {
 		if ev.Value == keyPress {
 			if err := d.toggleKoreanMode(); err != nil {
@@ -2578,7 +2580,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		return
 	}
 
-	// Shift+Space 한영 모드 전환
+	// Shift+Space: toggle Korean mode
 	if ev.Code == KEY_SPACE && d.shifted && !d.ctrl_or_alt {
 		switch ev.Value {
 		case keyPress:
@@ -2594,7 +2596,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		return
 	}
 
-	// 한글 모드에서는 CapsLock이 xochitl의 영문 대소문자 상태를 건드리지 않게 막는다.
+	// In Korean mode, prevent CapsLock from affecting xochitl's English case state.
 	if ev.Code == KEY_CAPSLOCK {
 		if d.korean && !d.ctrl_or_alt {
 			return
@@ -2618,14 +2620,14 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 		}
 	}
 
-	// Ctrl or Alt가 눌린 동안은 무조건 우회 (단, 위에서 처리된 특수 단축키 제외)
+	// Bypass everything while Ctrl or Alt is pressed (except special shortcuts handled above)
 	if d.ctrl_or_alt {
 		d.passthrough(ev)
 		return
 	}
 
 	if ev.Value == keyPress || ev.Value == keyRepeat {
-		// 영문 모드면 그대로 전달
+		// Pass as-is in English mode
 		if !d.korean {
 			d.passthroughWithShift(ev)
 			return
@@ -2736,7 +2738,7 @@ func scanKeyboardDevices(preferredPath string, verbose bool) ([]DeviceInfo, erro
 	if preferredPath != "" {
 		if info, err := readDeviceInfo(preferredPath); err == nil {
 			if verbose || debugLogging {
-				log.Printf("입력 디바이스 후보(우선): %s = %s", info.Path, info.Name)
+				log.Printf("Input device candidate (priority): %s = %s", info.Path, info.Name)
 			}
 			appendDevice(info)
 		}
@@ -2751,7 +2753,7 @@ func scanKeyboardDevices(preferredPath string, verbose bool) ([]DeviceInfo, erro
 			continue
 		}
 		if verbose || debugLogging {
-			log.Printf("입력 디바이스 발견: %s = %s", devPath, info.Name)
+			log.Printf("Input device found: %s = %s", devPath, info.Name)
 		}
 		if !isSupportedKeyboardDevice(info) {
 			continue
@@ -2800,7 +2802,7 @@ func (d *Daemon) addInputDeviceLocked(info DeviceInfo) error {
 		d.inputs = make(map[string]*ManagedInput)
 	}
 	d.inputs[info.Path] = &ManagedInput{Info: info, File: f}
-	log.Printf("입력 장치 grab: %s (%s)", info.Path, info.Name)
+	log.Printf("Input device grabbed: %s (%s)", info.Path, info.Name)
 	go d.readInputLoop(info.Path, f)
 	return nil
 }
@@ -2815,7 +2817,7 @@ func (d *Daemon) removeInputDeviceLocked(path string) {
 		_ = ioctl(input.File.Fd(), EVIOCGRAB, 0)
 		_ = input.File.Close()
 	}
-	log.Printf("입력 장치 해제: %s (%s)", input.Info.Path, input.Info.Name)
+	log.Printf("Input device released: %s (%s)", input.Info.Path, input.Info.Name)
 }
 
 func (d *Daemon) closeAllInputsLocked() {
@@ -2903,7 +2905,7 @@ func (d *Daemon) watchKeyboardDevices() {
 		err = watcher.wait()
 		watcher.close()
 		if err != nil && err != syscall.EBADF {
-			log.Printf("입력 디렉토리 감시 오류: %v", err)
+			log.Printf("Input directory watch error: %v", err)
 			time.Sleep(500 * time.Millisecond)
 		}
 		d.signalRescan()
@@ -2922,18 +2924,18 @@ func (d *Daemon) reconcileInputsLocked(devices []DeviceInfo) {
 	}
 	for _, info := range devices {
 		if err := d.addInputDeviceLocked(info); err != nil {
-			log.Printf("입력 장치 추가 실패: %s (%s): %v", info.Path, info.Name, err)
+			log.Printf("Failed to add input device: %s (%s): %v", info.Path, info.Name, err)
 		}
 	}
 	if len(d.inputs) == 0 && d.layoutActive {
 		if err := d.restoreOutputLayout(); err != nil {
-			log.Printf("입력 장치 없음: 출력 레이아웃 복원 실패: %v", err)
+			log.Printf("No input devices: failed to restore output layout: %v", err)
 		}
 	}
 }
 
 func (d *Daemon) run(preferredPath string) error {
-	// 패처 초기화 (디스크에서 KEY_Q 오프셋 검색)
+	// Patcher init (scan for KEY_Q offset in file)
 	d.patcher = &KeymapPatcher{}
 	if err := d.patcher.init(); err != nil {
 		return fmt.Errorf("patcher init: %w", err)
@@ -2945,14 +2947,14 @@ func (d *Daemon) run(preferredPath string) error {
 		return fmt.Errorf("output layout init: %w", err)
 	}
 
-	// xochitl 실행 확인
+	// Verify xochitl is running
 	if pid, err := findXochitlPID(); err != nil {
-		log.Printf("경고: xochitl 미실행 (%v)", err)
+		log.Printf("Warning: xochitl not running (%v)", err)
 	} else {
 		log.Printf("xochitl PID: %d", pid)
 	}
 
-	// 초기 uinput 디바이스 생성
+	// Create initial uinput device
 	if err := d.setupUinput(); err != nil {
 		return fmt.Errorf("setup uinput: %w", err)
 	}
@@ -2960,7 +2962,7 @@ func (d *Daemon) run(preferredPath string) error {
 	if err := d.reinitializeOutputLayoutForCurrentMode(); err != nil {
 		return fmt.Errorf("initial output layout reinit: %w", err)
 	}
-	log.Println("모드: 한글 (Shift+Space 또는 Right Alt로 전환)")
+	log.Println("Mode: Korean (toggle with Shift+Space or Right Alt)")
 	d.outputCh = make(chan outputJob, 1024)
 	d.outputResultCh = make(chan outputResult, 1024)
 	d.outputStopCh = make(chan struct{})
@@ -2980,7 +2982,7 @@ func (d *Daemon) run(preferredPath string) error {
 			devices, err := scanKeyboardDevices(preferredPath, false)
 			preferredPath = ""
 			if err != nil {
-				log.Printf("키보드 스캔 실패: %v", err)
+				log.Printf("Keyboard scan failed: %v", err)
 				time.Sleep(500 * time.Millisecond)
 				d.signalRescan()
 				continue
@@ -2992,10 +2994,10 @@ func (d *Daemon) run(preferredPath string) error {
 			d.mu.Lock()
 			if msg.Err != nil {
 				if _, ok := d.inputs[msg.Path]; ok {
-					log.Printf("입력 장치 오류: %v", msg.Err)
+					log.Printf("Input device error: %v", msg.Err)
 					info := d.inputs[msg.Path].Info
 					if isBluetoothKeyboardDevice(info) {
-						log.Printf("블루투스 입력 장치 재열거 대기: %s (%s)", info.Path, info.Name)
+						log.Printf("Waiting for Bluetooth input device re-enumeration: %s (%s)", info.Path, info.Name)
 					} else {
 						if err := d.commitCurrent(); err != nil {
 							log.Printf("[OUTPUT] commit current failed during input removal: %v", err)
@@ -3003,7 +3005,7 @@ func (d *Daemon) run(preferredPath string) error {
 						d.removeInputDeviceLocked(msg.Path)
 						if len(d.inputs) == 0 && d.layoutActive {
 							if err := d.restoreOutputLayout(); err != nil {
-								log.Printf("입력 장치 없음: 출력 레이아웃 복원 실패: %v", err)
+								log.Printf("No input devices: failed to restore output layout: %v", err)
 							}
 						}
 					}
@@ -3038,9 +3040,9 @@ func (d *Daemon) cleanup() {
 			_ = d.patcher.restoreKeyEntry(slot.spec.code, slot.spec.mod)
 		}
 		if err := d.patcher.writeToDisk(d.patcher.origUnicode, d.patcher.origQtcode); err != nil {
-			log.Printf("[PATCHER] 디스크 원본 복원 실패: %v", err)
+			log.Printf("[PATCHER] Failed to restore original file: %v", err)
 		} else {
-			log.Printf("[PATCHER] 디스크 원본 복원 완료")
+			log.Printf("[PATCHER] Original file restored")
 		}
 		d.patcher.close()
 	}
@@ -3053,7 +3055,7 @@ func (d *Daemon) cleanup() {
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-	log.Printf("Hangul Keyboard Daemon v2 시작 (다중 입력 장치 지원)")
+	log.Printf("Hangul Keyboard Daemon v2 starting (multi-device support)")
 
 	preferredPath := ""
 	if len(os.Args) > 1 {
@@ -3063,14 +3065,14 @@ func main() {
 	d := &Daemon{}
 	d.swapLeftCtrlCapsLock = readInstallStateBool(installStatePath, "SWAP_LEFT_CTRL_CAPSLOCK")
 	if d.swapLeftCtrlCapsLock {
-		log.Println("옵션: Left Ctrl/CapsLock 교체 사용")
+		log.Println("Option: Swap Left Ctrl/CapsLock enabled")
 	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sig
-		log.Println("종료 중...")
+		log.Println("Shutting down...")
 		d.cleanup()
 		os.Exit(0)
 	}()
