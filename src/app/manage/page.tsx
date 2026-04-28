@@ -295,7 +295,7 @@ export default function ManagePage() {
                   </div>
                 </div>
                 {fontResult && (
-                  <p className="text-[13px] font-bold px-1 animate-fade-in" style={{ color: fontResult.includes("Failed") || fontResult.includes(t('common.error')) || fontResult.includes("실패") ? "#d93025" : "#1e8e3e" }}>
+                  <p className="text-[13px] font-bold px-1 animate-fade-in" style={{ color: fontResult.includes(t('common.error')) ? "#d93025" : "#1e8e3e" }}>
                     {fontResult}
                   </p>
                 )}

@@ -1,3 +1,5 @@
+[Read in Korean (한국어)](./README.ko.md)
+
 # <img src="src/app/rekoit.png" alt="rekoit logo" width="40" valign="middle"> rekoit: Remarkable Korean Input Toolkit
 
 rekoit is a toolkit designed to enable Korean input using the Type Folio and Bluetooth keyboards on the reMarkable Paper Pro and Paper Pro Move. It is optimized to minimize CPU and battery consumption.
