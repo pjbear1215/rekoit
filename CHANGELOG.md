@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.5] - 2026-04-28
+
+### 🌍 Bilingual Setup and Management UI
+- **Dual-language UI Implementation**: Introduced a custom, lightweight internationalization system supporting both English (EN) and Korean (KO) for the entire installation and management process.
+- **Auto Language Detection**: The application now automatically detects the user's browser language preference to provide the most relevant experience by default.
+- **Language Switcher**: Added an elegant language toggle in the header, allowing users to switch between English and Korean at any time.
+- **Globalized Documentation**: Provided a new English-first `README.md` and a dedicated `README.ko.md` for Korean users.
+- **Improved Terminology**: Standardized on **"Korean Input Engine"** across the entire UI and documentation to better reflect its technical function.
+- **Clean Codebase**: Translated internal comments, log messages, and UI fragments into English to improve maintainability for international contributors.
+
 ## [0.9.4] - 2026-04-25
 
 ### ✨ New Features & Improvements

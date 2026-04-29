@@ -2,6 +2,9 @@
 
 # <img src="src/app/rekoit.png" alt="rekoit logo" width="40" valign="middle"> rekoit: Remarkable Korean Input Toolkit
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jwpark)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 rekoit is a toolkit designed to enable Korean input using the Type Folio and Bluetooth keyboards on the reMarkable Paper Pro and Paper Pro Move. It is optimized to minimize CPU and battery consumption.
 
 > **⚠️ Disclaimer**
@@ -140,3 +143,10 @@ This project is distributed under the **MIT** License.
 
 ### 7.2 Credits & Acknowledgments
 This project is an improved version based on the ideas and prototypes of the [ko-remark](https://github.com/bncedgb-glitch/ko-remark) (by bncedgb-glitch) project. It has been redesigned for stability and polished for production use. We express our deep gratitude to the original author for the creative inspiration.
+
+---
+
+## Support
+If you find this tool helpful, please consider supporting its development. Your contributions help maintain the project and add new features.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jwpark)
