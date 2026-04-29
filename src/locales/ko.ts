@@ -85,7 +85,7 @@ export const ko = {
       section3Item1: "지능형 자동 재연결: IRK(Identity Resolving Key) 추출 기술로 보안 등을 위해 주기적으로 주소가 바뀌는 최신 블루투스 4.0+ 키보드들을 정확하게 식별하고 자동으로 재연결합니다.",
       section3Item2: "제로 소모 리소스 관리: 지수 백오프 로직을 사용하며, 특히 기기가 대기(Sleep) 모드일 때는 확인 작업을 완전히 중단하여 배터리 소모를 방지합니다.",
       section4Title: "4. 기기 호환성 및 권장 설치",
-      section4Item1: "검증된 환경: 공식 Type Folio와 대부분의 최신 블루투스 4.0+ 키보드에서 검증되었습니다. (구형 Classic 모델 미지원)",
+      section4Item1: "검증된 환경: 공식 Type Folio와 대부분의 최신 블루투스 키보드에서 검증되었습니다.",
       section4Item2: "권장 옵션: Type Folio만 사용하신다면 '한글 입력 엔진'만 설치해도 충분합니다. 외장 키보드를 함께 사용하신다면 '블루투스 도우미'를 포함하여 설치하는 것을 권장합니다.",
       section5Title: "5. 사전 준비 및 복구",
       section5Item1: "기존 흔적 제거: 기존 ko-remark (by bncedgb-glitch) 프로젝트가 설치되어 있다면, 해당 프로젝트의 원상복구 기능으로 초기화를 먼저 진행해야 합니다. (또는 기기의 팩토리 리셋 수행)",

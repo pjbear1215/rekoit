@@ -12,6 +12,9 @@ All notable changes to this project are documented in this file.
 - **Improved Terminology**: Standardized on **"Korean Input Engine"** across the entire UI and documentation to better reflect its technical function.
 - **Clean Codebase**: Translated internal comments, log messages, and UI fragments into English to improve maintainability for international contributors.
 
+### ⌨️ Enhanced Bluetooth Compatibility
+- **Classic Bluetooth Support**: Removed device discovery filters to support both Classic and LE (Low Energy) Bluetooth keyboards, broadening hardware compatibility for external input devices.
+
 ## [0.9.4] - 2026-04-25
 
 ### ✨ New Features & Improvements

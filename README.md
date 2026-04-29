@@ -25,7 +25,7 @@ rekoit is a toolkit designed to enable Korean input using the Type Folio and Blu
 - **Key Mapping Optimization:** Offers a feature to swap the positions of the left `CapsLock` and `Ctrl` keys for more efficient typing.
 
 ### 1.2 Bluetooth Stack Extension and Optimization
-- **Enhanced Connection Stability:** Complements and extends reMarkable's unfinished Bluetooth stack to ensure stable connections with modern devices supporting Bluetooth 4.0 or higher.
+- **Enhanced Connection Stability:** Complements and extends reMarkable's unfinished Bluetooth stack to ensure stable connections with modern Bluetooth devices.
 - **Intelligent Auto-Reconnection:** Uses IRK (Identity Resolving Key) based tracking logic to resolve reconnection issues with modern keyboards that periodically rotate their MAC addresses for security.
 - **Resource Optimization:** Minimizes battery consumption through exponential backoff and device state detection. It completely stops checks when the device is in Sleep mode and resets the interval immediately upon wake-up to ensure fast reconnection.
 - **Integrated Management:** Provides step-by-step support for device scanning, pairing, and connection logs via a web browser.
@@ -130,7 +130,7 @@ rekoit is designed to recover automatically after a firmware update. When the de
 ## 6. Troubleshooting
 
 - **SSH Connection Failure:** Double-check the USB cable, developer mode status, and the SSH password (case-sensitive).
-- **Bluetooth Device Not Found:** Ensure your keyboard supports Bluetooth Low Energy (BLE). Older "Classic" Bluetooth models will not be discovered.
+- **Bluetooth Device Not Found:** Ensure your keyboard is in pairing mode and within range. Older "Classic" Bluetooth models that are non-compliant with standard pairing may have issues.
 - **Package Installation Error:** If `sshpass` or `zstd` fails to install, refer to [Section 3.1](#31-host-pc-preparation) for manual installation.
 - **Bluetooth Passkey Not Appearing:** Put the keyboard back into pairing mode or delete existing pairing info in "Device Management" and try again.
 

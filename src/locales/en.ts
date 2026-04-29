@@ -85,7 +85,7 @@ export const en = {
       section3Item1: "Intelligent Auto Reconnection: Accurately identifies latest Bluetooth 4.0+ keyboards whose addresses change periodically for security, etc., using IRK (Identity Resolving Key) extraction technology and automatically reconnects.",
       section3Item2: "Zero Resource Management: Uses exponential backoff logic and completely stops checking when the device is in standby (Sleep) mode to prevent battery consumption.",
       section4Title: "4. Device Compatibility and Recommended Installation",
-      section4Item1: "Verified Environment: Verified with official Type Folio and most modern Bluetooth 4.0+ keyboards. (Old Classic models not supported)",
+      section4Item1: "Verified Environment: Verified with official Type Folio and most modern Bluetooth keyboards.",
       section4Item2: "Recommended Option: If you only use Type Folio, 'Korean Input Engine' is enough. If you use an external keyboard together, it is recommended to install including 'Bluetooth Helper'.",
       section5Title: "5. Preparation and Recovery",
       section5Item1: "Removal of existing traces: If the existing ko-remark (by bncedgb-glitch) project is installed, you must first reset using that project's restoration function. (Or perform a factory reset of the device)",

@@ -33,9 +33,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       COUNT=$((COUNT+1))
     done
     
-    # 4. Set filter (LE only)
+    # 4. Set filter
     bluetoothctl discovery-filter --clear 2>/dev/null || true
-    bluetoothctl discovery-filter --transport le 2>/dev/null || true
   `;
 
   return new Promise((resolve) => {

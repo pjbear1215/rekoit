@@ -30,17 +30,16 @@ export async function GET(request: NextRequest): Promise<Response> {
       const env = { ...process.env, SSHPASS: session.password };
       try {
         const scanCmd = `
-          bluetoothctl discovery-filter --transport le 2>/dev/null || true
-          
+          bluetoothctl discovery-filter --clear 2>/dev/null || true
+
           if command -v stdbuf >/dev/null; then
             STDBUF="stdbuf -oL"
           else
             STDBUF=""
           fi
-          
-          echo "INFO|Starting scan (LE only, 30s)"
-          $STDBUF bluetoothctl --timeout 30 scan on
-          
+
+          echo "INFO|Starting scan (30s)"
+          $STDBUF bluetoothctl --timeout 30 scan on          
           echo "INFO|Checking final device list..."
           bluetoothctl devices 2>/dev/null | while read -r _ ADDR NAME; do
             [ -n "$ADDR" ] || continue
