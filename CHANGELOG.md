@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.6] - 2026-05-13
+
+### ⌨️ Optimized Input Stack & Fixes
+- **Separate Cache Slots for Dual-Modes**: Implemented isolated layout caches for Korean and English modes. This prevents layout interference where previously typed Hangul characters would incorrectly appear in English mode.
+- **English Mode Symbol Slot Optimization**: Transitioned English mode patching from alpha keys to symbol keys (`;`, `'`, `,`, `.`, `/`). This allows all English alphabet characters to pass through instantly without any layout patch overhead, resulting in faster and more reliable typing.
+- **Native Text Selection Support**: Fixed the issue where `Shift + Arrow` text selection would break or stutter. The daemon now forwards physical Shift events directly to the system.
+- **Modifier Neutralization**: Introduced a sophisticated modifier neutralization system. The daemon now automatically releases physical modifiers (Shift, Ctrl, Alt) right before injecting synthetic keystrokes and restores them immediately after, ensuring the OS processes composed characters accurately without interference from held physical keys.
+- **Improved Mode Syncing**: Added `isKorean` flag tracking to the asynchronous output pipeline, ensuring results are always applied to the correct language cache regardless of rapid mode switching.
+
 ## [0.9.5] - 2026-04-28
 
 ### 🌍 Bilingual Setup and Management UI
