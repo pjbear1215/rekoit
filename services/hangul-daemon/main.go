@@ -958,9 +958,13 @@ type Daemon struct {
 	korean         bool
 	swapLeftCtrlCapsLock bool
 	shifted        bool
+	leftShiftDown  bool
+	rightShiftDown bool
 	shiftForwarded bool
 	shiftSpaceTogglePending bool
 	ctrl_or_alt    bool
+	leftCtrlDown   bool
+	leftAltDown    bool
 	pendingVisible bool
 	visibleChar    rune
 	previewPending bool
@@ -1182,39 +1186,6 @@ func mappedReplaceSequence(key mappedKey) []outputEvent {
 	return seq
 }
 
-func passthroughWithShiftSequence(ev InputEvent, korean bool) []outputEvent {
-	if korean {
-		if ev.Value == keyPress {
-			return []outputEvent{
-				{typ: EV_KEY, code: KEY_LEFTSHIFT, value: keyPress},
-				{typ: EV_KEY, code: ev.Code, value: keyPress},
-				{typ: EV_KEY, code: ev.Code, value: keyRelease},
-				{typ: EV_KEY, code: KEY_LEFTSHIFT, value: keyRelease},
-				synSequenceEvent(),
-			}
-		}
-		if ev.Value == keyRelease {
-			return nil
-		}
-	}
-
-	if ev.Value == keyPress {
-		return []outputEvent{
-			{typ: EV_KEY, code: KEY_LEFTSHIFT, value: keyPress},
-			{typ: EV_KEY, code: ev.Code, value: keyPress},
-			synSequenceEvent(),
-		}
-	}
-	if ev.Value == keyRelease {
-		return []outputEvent{
-			{typ: EV_KEY, code: ev.Code, value: keyRelease},
-			{typ: EV_KEY, code: KEY_LEFTSHIFT, value: keyRelease},
-			synSequenceEvent(),
-		}
-	}
-	return passthroughSequence(ev)
-}
-
 func (d *Daemon) emitSequence(seq []outputEvent) error {
 	for _, ev := range seq {
 		if err := d.writeEvent(ev.typ, ev.code, ev.value); err != nil {
@@ -1222,6 +1193,46 @@ func (d *Daemon) emitSequence(seq []outputEvent) error {
 		}
 	}
 	return nil
+}
+
+func (d *Daemon) neutralizeModifiers() []outputEvent {
+	seq := make([]outputEvent, 0)
+	if d.leftShiftDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_LEFTSHIFT, value: keyRelease})
+	}
+	if d.rightShiftDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_RIGHTSHIFT, value: keyRelease})
+	}
+	if d.leftCtrlDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_LEFTCTRL, value: keyRelease})
+	}
+	if d.leftAltDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_LEFTALT, value: keyRelease})
+	}
+	if len(seq) > 0 {
+		seq = append(seq, synSequenceEvent())
+	}
+	return seq
+}
+
+func (d *Daemon) restoreModifiers() []outputEvent {
+	seq := make([]outputEvent, 0)
+	if d.leftShiftDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_LEFTSHIFT, value: keyPress})
+	}
+	if d.rightShiftDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_RIGHTSHIFT, value: keyPress})
+	}
+	if d.leftCtrlDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_LEFTCTRL, value: keyPress})
+	}
+	if d.leftAltDown {
+		seq = append(seq, outputEvent{typ: EV_KEY, code: KEY_LEFTALT, value: keyPress})
+	}
+	if len(seq) > 0 {
+		seq = append(seq, synSequenceEvent())
+	}
+	return seq
 }
 
 func (d *Daemon) sendKey(code uint16, press bool) error {
@@ -1248,7 +1259,10 @@ func (d *Daemon) sendMappedReplace(key mappedKey) error {
 }
 
 func (d *Daemon) sendBackspace() error {
-	return d.sendKeyTap(KEY_BACKSPACE)
+	seq := d.neutralizeModifiers()
+	seq = append(seq, keyTapSequence(KEY_BACKSPACE)...)
+	seq = append(seq, d.restoreModifiers()...)
+	return d.enqueueOutputJob(outputJob{kind: outputJobEmitSequence, sequence: seq})
 }
 
 func cloneOutputLayout(slots []outputSlot) []outputSlot {
@@ -1697,17 +1711,7 @@ func specialPassthroughRune(code uint16, shifted bool, ctrl bool) (rune, bool) {
 }
 
 func (d *Daemon) passthroughWithShift(ev InputEvent) {
-	if !d.shifted || ev.Type != EV_KEY || ev.Value == keyRepeat {
-		d.passthrough(ev)
-		return
-	}
-	seq := passthroughWithShiftSequence(ev, d.korean)
-	if len(seq) == 0 {
-		return
-	}
-	if err := d.enqueueOutputJob(outputJob{kind: outputJobEmitSequence, sequence: seq}); err != nil {
-		log.Printf("[OUTPUT] shifted passthrough enqueue failed: %v", err)
-	}
+	d.passthrough(ev)
 }
 
 func (d *Daemon) signalRescan() {
@@ -2028,15 +2032,21 @@ func (d *Daemon) reserveCommitSlot(char rune, preferCompose bool) (outputSlotBin
 	}, nil
 }
 
-func buildMappedOutputSequence(key mappedKey, backspaces int, batchReplace bool) []outputEvent {
+func (d *Daemon) buildMappedOutputSequence(key mappedKey, backspaces int, batchReplace bool) []outputEvent {
+	seq := d.neutralizeModifiers()
+
+	coreSeq := make([]outputEvent, 0)
 	if batchReplace && backspaces == 1 {
-		return mappedReplaceSequence(key)
+		coreSeq = append(coreSeq, mappedReplaceSequence(key)...)
+	} else {
+		for i := 0; i < backspaces; i++ {
+			coreSeq = append(coreSeq, keyTapSequence(KEY_BACKSPACE)...)
+		}
+		coreSeq = append(coreSeq, mappedKeyTapSequence(key)...)
 	}
-	seq := make([]outputEvent, 0, backspaces*len(keyTapSequence(KEY_BACKSPACE))+len(mappedKeyTapSequence(key)))
-	for i := 0; i < backspaces; i++ {
-		seq = append(seq, keyTapSequence(KEY_BACKSPACE)...)
-	}
-	seq = append(seq, mappedKeyTapSequence(key)...)
+	seq = append(seq, coreSeq...)
+
+	seq = append(seq, d.restoreModifiers()...)
 	return seq
 }
 
@@ -2087,7 +2097,7 @@ func (d *Daemon) outputComposeChar(char rune, backspaces int, batchReplace bool,
 	if commit {
 		jobKind = outputJobCommitRender
 	}
-	if err := d.enqueueRenderJob(jobKind, binding, char, buildMappedOutputSequence(binding.key, backspaces, batchReplace), d.composeGeneration, d.pendingVisible, binding.patchNeeded && layoutWasActive, commit); err != nil {
+	if err := d.enqueueRenderJob(jobKind, binding, char, d.buildMappedOutputSequence(binding.key, backspaces, batchReplace), d.composeGeneration, d.pendingVisible, binding.patchNeeded && layoutWasActive, commit); err != nil {
 		d.rollbackBoundOutputSlot(binding.slotIndex, binding.snapshot, char)
 		if !commit && binding.snapshot.prevState != outputSlotPreviewVisible {
 			d.clearComposeSlotState()
@@ -2113,7 +2123,7 @@ func (d *Daemon) outputChar(char rune, backspaces int, batchReplace bool) error 
 		d.rollbackBoundOutputSlot(binding.slotIndex, binding.snapshot, char)
 		return fmt.Errorf("activate output layout: %w", err)
 	}
-	if err := d.enqueueRenderJob(outputJobCommitRender, binding, char, buildMappedOutputSequence(binding.key, backspaces, batchReplace), d.composeGeneration, d.pendingVisible, binding.patchNeeded && layoutWasActive, true); err != nil {
+	if err := d.enqueueRenderJob(outputJobCommitRender, binding, char, d.buildMappedOutputSequence(binding.key, backspaces, batchReplace), d.composeGeneration, d.pendingVisible, binding.patchNeeded && layoutWasActive, true); err != nil {
 		d.rollbackBoundOutputSlot(binding.slotIndex, binding.snapshot, char)
 		return fmt.Errorf("queue output render for %q: %w", char, err)
 	}
@@ -2622,25 +2632,23 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 	}
 	// Shift state check
 	if ev.Code == KEY_LEFTSHIFT || ev.Code == KEY_RIGHTSHIFT {
-		d.shifted = (ev.Value != keyRelease)
-		if ev.Value == keyRelease {
-			if d.shiftForwarded {
-				d.shiftForwarded = false
-				d.passthrough(ev)
-			}
-			return
+		if ev.Code == KEY_LEFTSHIFT {
+			d.leftShiftDown = (ev.Value != keyRelease)
+		} else {
+			d.rightShiftDown = (ev.Value != keyRelease)
 		}
-		// Pass Shift as-is only when Ctrl or Alt is pressed (for system shortcuts)
-		if d.ctrl_or_alt {
-			d.shiftForwarded = true
-			d.passthrough(ev)
-			return
-		}
-		d.shiftForwarded = false
+		d.shifted = d.leftShiftDown || d.rightShiftDown
+		d.passthrough(ev)
 		return
 	}
 	// Ctrl Alt state check
 	if ev.Code == KEY_LEFTCTRL || ev.Code == KEY_LEFTALT {
+		if ev.Code == KEY_LEFTCTRL {
+			d.leftCtrlDown = (ev.Value != keyRelease)
+		} else {
+			d.leftAltDown = (ev.Value != keyRelease)
+		}
+
 		if ev.Value == keyPress {
 			d.ctrl_or_alt = true
 			if err := d.commitCurrent(); err != nil {
@@ -2648,7 +2656,7 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 			}
 			d.restoreKeymap()
 		} else if ev.Value == keyRelease {
-			d.ctrl_or_alt = false
+			d.ctrl_or_alt = d.leftCtrlDown || d.leftAltDown
 		}
 		d.passthrough(ev)
 		return
