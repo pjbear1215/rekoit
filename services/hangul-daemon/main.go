@@ -224,6 +224,7 @@ type outputJob struct {
 	visibleAtEnqueue bool
 	needsPatch  bool
 	releaseSlot bool
+	isKorean    bool
 }
 
 type outputResult struct {
@@ -231,6 +232,7 @@ type outputResult struct {
 	previewShown bool
 	char         rune
 	generation   uint64
+	isKorean     bool
 }
 
 type renderBatchMeta struct {
@@ -669,9 +671,19 @@ func alphaShiftSpecs() []keyPatchSpec {
 	}
 }
 
-func symbolPlainSpecs() []keyPatchSpec { return nil }
+func symbolPlainSpecs() []keyPatchSpec {
+	return []keyPatchSpec{
+		{KEY_SEMICOLON, ';', ';', 0}, {KEY_APOSTROPHE, '\'', '\'', 0}, {KEY_COMMA, ',', ',', 0},
+		{KEY_DOT, '.', '.', 0}, {KEY_SLASH, '/', '/', 0},
+	}
+}
 
-func symbolShiftSpecs() []keyPatchSpec { return nil }
+func symbolShiftSpecs() []keyPatchSpec {
+	return []keyPatchSpec{
+		{KEY_SEMICOLON, ':', ':', 1}, {KEY_APOSTROPHE, '"', '"', 1}, {KEY_COMMA, '<', '<', 1},
+		{KEY_DOT, '>', '>', 1}, {KEY_SLASH, '?', '?', 1},
+	}
+}
 
 func allOutputSlotSpecs() []keyPatchSpec {
 	specs := make([]keyPatchSpec, 0, 52)
@@ -922,6 +934,17 @@ type HangulState struct {
 	jong  int
 }
 
+type LayoutCache struct {
+	outputMap         map[rune]mappedKey
+	outputIndex       map[rune]int
+	outputSpecs       []keyPatchSpec
+	outputSlots       []outputSlot
+	composeSlotActive bool
+	composeSlotIndex  int
+	layoutActive      bool
+	lruUseTick        uint64
+}
+
 type Daemon struct {
 	mu             sync.Mutex
 	inputs         map[string]*ManagedInput
@@ -951,12 +974,8 @@ type Daemon struct {
 	patcher        *KeymapPatcher
 	idleFlushSeq   uint64
 	idleFlushCmdCh chan idleFlushCommand
-	outputMap      map[rune]mappedKey
-	outputIndex    map[rune]int
-	outputSpecs    []keyPatchSpec
-	outputSlots    []outputSlot
-	composeSlotActive bool
-	composeSlotIndex  int
+	koreanCache    *LayoutCache
+	englishCache   *LayoutCache
 	renderLatestJobs     []outputJob
 	renderLatestSet      []bool
 	renderDroppedPreview []bool
@@ -965,8 +984,6 @@ type Daemon struct {
 	renderFiltered       []outputJob
 	renderTouchedDropped []int
 	renderReleaseSlots   []int
-	layoutActive   bool
-	lruUseTick     uint64
 }
 
 func isBluetoothKeyboardDevice(info DeviceInfo) bool {
@@ -1282,11 +1299,16 @@ func (d *Daemon) enqueueOutputResult(result outputResult) {
 }
 
 func (d *Daemon) applyOutputResultLocked(result outputResult) {
+	c := d.koreanCache
+	if !result.isKorean {
+		c = d.englishCache
+	}
+
 	for _, slotIndex := range result.releaseSlots {
-		if slotIndex < 0 || slotIndex >= len(d.outputSlots) {
+		if slotIndex < 0 || slotIndex >= len(c.outputSlots) {
 			continue
 		}
-		slot := &d.outputSlots[slotIndex]
+		slot := &c.outputSlots[slotIndex]
 		if slot.state != outputSlotReservedCommit {
 			continue
 		}
@@ -1406,12 +1428,15 @@ func trimDroppedPreviewRender(job outputJob, droppedPreview bool) outputJob {
 }
 
 func (d *Daemon) ensureRenderScratch() {
-	slotCount := len(d.outputSlots)
-	if len(d.renderLatestJobs) != slotCount {
-		d.renderLatestJobs = make([]outputJob, slotCount)
-		d.renderLatestSet = make([]bool, slotCount)
-		d.renderDroppedPreview = make([]bool, slotCount)
-		d.renderReleaseSet = make([]bool, slotCount)
+	maxSlots := len(d.koreanCache.outputSlots)
+	if engLen := len(d.englishCache.outputSlots); engLen > maxSlots {
+		maxSlots = engLen
+	}
+	if len(d.renderLatestJobs) != maxSlots {
+		d.renderLatestJobs = make([]outputJob, maxSlots)
+		d.renderLatestSet = make([]bool, maxSlots)
+		d.renderDroppedPreview = make([]bool, maxSlots)
+		d.renderReleaseSet = make([]bool, maxSlots)
 	}
 	d.renderOrder = d.renderOrder[:0]
 	d.renderFiltered = d.renderFiltered[:0]
@@ -1450,7 +1475,7 @@ func (d *Daemon) executeSingleRenderJob(job outputJob) error {
 		}
 	}
 
-	result := outputResult{}
+	result := outputResult{isKorean: job.isKorean}
 	if job.kind == outputJobPreviewRender {
 		result.previewShown = true
 		result.char = job.char
@@ -1488,6 +1513,11 @@ func (d *Daemon) executeFilteredRenderJobs(filtered []outputJob) error {
 	}
 
 	releaseSlots := d.renderReleaseSlots[:0]
+	isKoreanForRelease := false
+	if len(filtered) > 0 {
+		isKoreanForRelease = filtered[0].isKorean
+	}
+
 	for _, job := range filtered {
 		if len(job.sequence) > 0 {
 			if err := d.emitSequence(job.sequence); err != nil {
@@ -1499,6 +1529,7 @@ func (d *Daemon) executeFilteredRenderJobs(filtered []outputJob) error {
 				previewShown: true,
 				char:         job.char,
 				generation:   job.generation,
+				isKorean:     job.isKorean,
 			})
 		}
 		if job.releaseSlot {
@@ -1511,7 +1542,7 @@ func (d *Daemon) executeFilteredRenderJobs(filtered []outputJob) error {
 	d.renderReleaseSlots = releaseSlots
 	if len(releaseSlots) > 0 {
 		releaseCopy := append([]int(nil), releaseSlots...)
-		d.enqueueOutputResult(outputResult{releaseSlots: releaseCopy})
+		d.enqueueOutputResult(outputResult{releaseSlots: releaseCopy, isKorean: isKoreanForRelease})
 	}
 	return nil
 }
@@ -1689,48 +1720,76 @@ func (d *Daemon) signalRescan() {
 	}
 }
 
-func (d *Daemon) initOutputLayout() error {
-	specs := d.outputSpecs
-
-	d.outputMap = make(map[rune]mappedKey, len(specs))
-	d.outputIndex = make(map[rune]int, len(specs))
-	d.outputSlots = make([]outputSlot, len(specs))
-	d.clearComposeSlotState()
-	for i, spec := range specs {
-		d.outputSlots[i] = outputSlot{spec: spec, state: outputSlotFree}
+func (d *Daemon) currentCache() *LayoutCache {
+	if d.korean {
+		return d.koreanCache
 	}
+	return d.englishCache
+}
+
+func (d *Daemon) initOutputLayout() error {
+	initCache := func(c *LayoutCache) {
+		specs := c.outputSpecs
+		c.outputMap = make(map[rune]mappedKey, len(specs))
+		c.outputIndex = make(map[rune]int, len(specs))
+		c.outputSlots = make([]outputSlot, len(specs))
+		c.composeSlotActive = false
+		c.composeSlotIndex = -1
+		for i, spec := range specs {
+			c.outputSlots[i] = outputSlot{spec: spec, state: outputSlotFree}
+		}
+	}
+	initCache(d.koreanCache)
+	initCache(d.englishCache)
 	return nil
 }
 
 func (d *Daemon) initOutputSpecs() error {
-	candidates := allOutputSlotSpecs()
-	d.outputSpecs = make([]keyPatchSpec, 0, len(candidates))
-	for _, spec := range candidates {
-		if err := d.patcher.initKeyEntry(spec); err != nil {
-			log.Printf("[OUTPUT] unsupported slot skipped: %s shift=%t unicode=U+%04X (%v)", keyCodeName(spec.code), spec.mod != 0, spec.unicode, err)
-			continue
+	d.koreanCache = &LayoutCache{}
+	d.englishCache = &LayoutCache{}
+
+	loadSpecs := func(c *LayoutCache, candidates []keyPatchSpec) error {
+		c.outputSpecs = make([]keyPatchSpec, 0, len(candidates))
+		for _, spec := range candidates {
+			if err := d.patcher.initKeyEntry(spec); err != nil {
+				log.Printf("[OUTPUT] unsupported slot skipped: %s shift=%t unicode=U+%04X (%v)", keyCodeName(spec.code), spec.mod != 0, spec.unicode, err)
+				continue
+			}
+			c.outputSpecs = append(c.outputSpecs, spec)
 		}
-		d.outputSpecs = append(d.outputSpecs, spec)
+		return nil
 	}
-	if len(d.outputSpecs) == 0 {
+
+	koreanSpecs := append(alphaPlainSpecs(), alphaShiftSpecs()...)
+	if err := loadSpecs(d.koreanCache, koreanSpecs); err != nil {
+		return err
+	}
+	englishSpecs := append(symbolPlainSpecs(), symbolShiftSpecs()...)
+	if err := loadSpecs(d.englishCache, englishSpecs); err != nil {
+		return err
+	}
+
+	if len(d.koreanCache.outputSpecs) == 0 && len(d.englishCache.outputSpecs) == 0 {
 		return fmt.Errorf("no supported output slot specs found")
 	}
 	return d.patcher.openMappedFile()
 }
 
 func (d *Daemon) applyOutputLayoutToDisk() error {
-	return d.applyOutputLayoutSnapshot(d.outputSlots)
+	c := d.currentCache()
+	return d.applyOutputLayoutSnapshot(c.outputSlots)
 }
 
 func (d *Daemon) activateOutputLayout() error {
-	if d.layoutActive {
+	c := d.currentCache()
+	if c.layoutActive {
 		return nil
 	}
-	snapshot := cloneOutputLayout(d.outputSlots)
+	snapshot := cloneOutputLayout(c.outputSlots)
 	if err := d.enqueueOutputJob(outputJob{kind: outputJobSyncLayout, layout: snapshot}); err != nil {
 		return fmt.Errorf("queue output layout sync: %w", err)
 	}
-	d.layoutActive = true
+	c.layoutActive = true
 	return nil
 }
 
@@ -1738,14 +1797,15 @@ func (d *Daemon) restoreOutputLayout() error {
 	if d.patcher == nil {
 		return nil
 	}
-	if !d.layoutActive {
+	c := d.currentCache()
+	if !c.layoutActive {
 		return nil
 	}
 	d.clearComposeSlotState()
-	if err := d.enqueueOutputJob(outputJob{kind: outputJobRestoreLayout, layout: cloneOutputLayout(d.outputSlots)}); err != nil {
+	if err := d.enqueueOutputJob(outputJob{kind: outputJobRestoreLayout, layout: cloneOutputLayout(c.outputSlots)}); err != nil {
 		return fmt.Errorf("queue output layout restore: %w", err)
 	}
-	d.layoutActive = false
+	c.layoutActive = false
 	return nil
 }
 
@@ -1754,17 +1814,30 @@ func (d *Daemon) reinitializeOutputLayoutForCurrentMode() error {
 		return nil
 	}
 	d.clearComposeSlotState()
-	for _, slot := range d.outputSlots {
-		if err := d.patcher.restoreKeyEntry(slot.spec.code, slot.spec.mod); err != nil {
-			return fmt.Errorf("restore output layout: %w", err)
+
+	restoreCache := func(c *LayoutCache) error {
+		for _, slot := range c.outputSlots {
+			if err := d.patcher.restoreKeyEntry(slot.spec.code, slot.spec.mod); err != nil {
+				return fmt.Errorf("restore output layout: %w", err)
+			}
 		}
+		c.layoutActive = false
+		return nil
 	}
-	d.layoutActive = false
+
+	if err := restoreCache(d.koreanCache); err != nil {
+		return err
+	}
+	if err := restoreCache(d.englishCache); err != nil {
+		return err
+	}
+
+	c := d.currentCache()
 	if d.korean {
 		if err := d.applyOutputLayoutToDisk(); err != nil {
 			return fmt.Errorf("reapply output layout: %w", err)
 		}
-		d.layoutActive = true
+		c.layoutActive = true
 	}
 	if d.uinputFd != nil {
 		if err := d.recreateUinput(); err != nil {
@@ -1775,22 +1848,24 @@ func (d *Daemon) reinitializeOutputLayoutForCurrentMode() error {
 }
 
 func (d *Daemon) lookupOutputChar(char rune) (mappedKey, bool) {
-	idx, ok := d.outputIndex[char]
-	if !ok || idx < 0 || idx >= len(d.outputSlots) {
+	c := d.currentCache()
+	idx, ok := c.outputIndex[char]
+	if !ok || idx < 0 || idx >= len(c.outputSlots) {
 		return mappedKey{}, false
 	}
-	slot := &d.outputSlots[idx]
+	slot := &c.outputSlots[idx]
 	if slot.state != outputSlotResident {
 		return mappedKey{}, false
 	}
-	d.lruUseTick++
-	slot.lastUsed = d.lruUseTick
+	c.lruUseTick++
+	slot.lastUsed = c.lruUseTick
 	return mappedKeyFromSpec(slot.spec), true
 }
 
 func (d *Daemon) clearComposeSlotState() {
-	if d.composeSlotActive && d.composeSlotIndex >= 0 && d.composeSlotIndex < len(d.outputSlots) {
-		slot := &d.outputSlots[d.composeSlotIndex]
+	c := d.currentCache()
+	if c.composeSlotActive && c.composeSlotIndex >= 0 && c.composeSlotIndex < len(c.outputSlots) {
+		slot := &c.outputSlots[c.composeSlotIndex]
 		if slot.state == outputSlotPreviewVisible {
 			if slot.char == 0 {
 				slot.state = outputSlotFree
@@ -1799,20 +1874,21 @@ func (d *Daemon) clearComposeSlotState() {
 			}
 		}
 	}
-	d.composeSlotActive = false
-	d.composeSlotIndex = -1
+	c.composeSlotActive = false
+	c.composeSlotIndex = -1
 }
 
 func (d *Daemon) selectOutputSlotIndex() (int, error) {
-	for i := range d.outputSlots {
-		if d.outputSlots[i].state == outputSlotFree {
+	c := d.currentCache()
+	for i := range c.outputSlots {
+		if c.outputSlots[i].state == outputSlotFree {
 			return i, nil
 		}
 	}
 	slotIndex := -1
 	var minUsed uint64 = ^uint64(0)
-	for i := range d.outputSlots {
-		slot := d.outputSlots[i]
+	for i := range c.outputSlots {
+		slot := c.outputSlots[i]
 		if slot.state != outputSlotResident {
 			continue
 		}
@@ -1828,48 +1904,51 @@ func (d *Daemon) selectOutputSlotIndex() (int, error) {
 }
 
 func (d *Daemon) bindOutputSlot(slotIndex int, char rune, state outputSlotState) (mappedKey, outputSlotSnapshot, bool) {
-	slot := &d.outputSlots[slotIndex]
+	c := d.currentCache()
+	slot := &c.outputSlots[slotIndex]
 	snapshot := outputSlotSnapshot{
 		prevChar:     slot.char,
 		prevLastUsed: slot.lastUsed,
-		prevTick:     d.lruUseTick,
+		prevTick:     c.lruUseTick,
 		prevState:    slot.state,
 	}
 	newTick := snapshot.prevTick + 1
 	key := mappedKeyFromSpec(slot.spec)
 
 	if snapshot.prevChar != 0 {
-		delete(d.outputMap, snapshot.prevChar)
-		delete(d.outputIndex, snapshot.prevChar)
+		delete(c.outputMap, snapshot.prevChar)
+		delete(c.outputIndex, snapshot.prevChar)
 	}
 	slot.char = char
 	slot.state = state
 	slot.lastUsed = newTick
-	d.lruUseTick = newTick
-	d.outputMap[char] = key
-	d.outputIndex[char] = slotIndex
+	c.lruUseTick = newTick
+	c.outputMap[char] = key
+	c.outputIndex[char] = slotIndex
 	return key, snapshot, snapshot.prevChar != char
 }
 
 func (d *Daemon) rollbackBoundOutputSlot(slotIndex int, snapshot outputSlotSnapshot, char rune) {
-	slot := &d.outputSlots[slotIndex]
-	delete(d.outputMap, char)
-	delete(d.outputIndex, char)
+	c := d.currentCache()
+	slot := &c.outputSlots[slotIndex]
+	delete(c.outputMap, char)
+	delete(c.outputIndex, char)
 	slot.char = snapshot.prevChar
 	slot.lastUsed = snapshot.prevLastUsed
 	slot.state = snapshot.prevState
-	d.lruUseTick = snapshot.prevTick
+	c.lruUseTick = snapshot.prevTick
 	if snapshot.prevChar != 0 {
 		key := mappedKeyFromSpec(slot.spec)
-		d.outputMap[snapshot.prevChar] = key
-		d.outputIndex[snapshot.prevChar] = slotIndex
+		c.outputMap[snapshot.prevChar] = key
+		c.outputIndex[snapshot.prevChar] = slotIndex
 	}
 }
 
 func (d *Daemon) ensurePreviewSlot(char rune) (outputSlotBinding, error) {
-	if d.composeSlotActive && d.composeSlotIndex >= 0 && d.composeSlotIndex < len(d.outputSlots) {
-		slotIndex := d.composeSlotIndex
-		if d.outputSlots[slotIndex].state == outputSlotPreviewVisible {
+	c := d.currentCache()
+	if c.composeSlotActive && c.composeSlotIndex >= 0 && c.composeSlotIndex < len(c.outputSlots) {
+		slotIndex := c.composeSlotIndex
+		if c.outputSlots[slotIndex].state == outputSlotPreviewVisible {
 			key, snapshot, patchNeeded := d.bindOutputSlot(slotIndex, char, outputSlotPreviewVisible)
 			return outputSlotBinding{
 				slotIndex:   slotIndex,
@@ -1880,11 +1959,11 @@ func (d *Daemon) ensurePreviewSlot(char rune) (outputSlotBinding, error) {
 		}
 	}
 
-	if idx, ok := d.outputIndex[char]; ok && idx >= 0 && idx < len(d.outputSlots) {
-		if d.outputSlots[idx].state == outputSlotResident {
+	if idx, ok := c.outputIndex[char]; ok && idx >= 0 && idx < len(c.outputSlots) {
+		if c.outputSlots[idx].state == outputSlotResident {
 			key, snapshot, patchNeeded := d.bindOutputSlot(idx, char, outputSlotPreviewVisible)
-			d.composeSlotActive = true
-			d.composeSlotIndex = idx
+			c.composeSlotActive = true
+			c.composeSlotIndex = idx
 			return outputSlotBinding{
 				slotIndex:   idx,
 				key:         key,
@@ -1899,8 +1978,8 @@ func (d *Daemon) ensurePreviewSlot(char rune) (outputSlotBinding, error) {
 		return outputSlotBinding{}, fmt.Errorf("no compose slot available for %q: %w", char, err)
 	}
 	key, snapshot, patchNeeded := d.bindOutputSlot(slotIndex, char, outputSlotPreviewVisible)
-	d.composeSlotActive = true
-	d.composeSlotIndex = slotIndex
+	c.composeSlotActive = true
+	c.composeSlotIndex = slotIndex
 	return outputSlotBinding{
 		slotIndex:   slotIndex,
 		key:         key,
@@ -1910,9 +1989,10 @@ func (d *Daemon) ensurePreviewSlot(char rune) (outputSlotBinding, error) {
 }
 
 func (d *Daemon) reserveCommitSlot(char rune, preferCompose bool) (outputSlotBinding, error) {
-	if preferCompose && d.composeSlotActive && d.composeSlotIndex >= 0 && d.composeSlotIndex < len(d.outputSlots) {
-		slotIndex := d.composeSlotIndex
-		if d.outputSlots[slotIndex].state == outputSlotPreviewVisible {
+	c := d.currentCache()
+	if preferCompose && c.composeSlotActive && c.composeSlotIndex >= 0 && c.composeSlotIndex < len(c.outputSlots) {
+		slotIndex := c.composeSlotIndex
+		if c.outputSlots[slotIndex].state == outputSlotPreviewVisible {
 			key, snapshot, patchNeeded := d.bindOutputSlot(slotIndex, char, outputSlotReservedCommit)
 			return outputSlotBinding{
 				slotIndex:   slotIndex,
@@ -1923,8 +2003,8 @@ func (d *Daemon) reserveCommitSlot(char rune, preferCompose bool) (outputSlotBin
 		}
 	}
 
-	if idx, ok := d.outputIndex[char]; ok && idx >= 0 && idx < len(d.outputSlots) {
-		if d.outputSlots[idx].state == outputSlotResident {
+	if idx, ok := c.outputIndex[char]; ok && idx >= 0 && idx < len(c.outputSlots) {
+		if c.outputSlots[idx].state == outputSlotResident {
 			key, snapshot, patchNeeded := d.bindOutputSlot(idx, char, outputSlotReservedCommit)
 			return outputSlotBinding{
 				slotIndex:   idx,
@@ -1961,17 +2041,19 @@ func buildMappedOutputSequence(key mappedKey, backspaces int, batchReplace bool)
 }
 
 func (d *Daemon) enqueueRenderJob(kind outputJobKind, binding outputSlotBinding, char rune, sequence []outputEvent, generation uint64, visibleAtEnqueue bool, needsPatch bool, releaseSlot bool) error {
-	slot := d.outputSlots[binding.slotIndex]
+	c := d.currentCache()
+	slot := c.outputSlots[binding.slotIndex]
 	return d.enqueueOutputJob(outputJob{
-		kind:        kind,
-		slotIndex:   binding.slotIndex,
-		spec:        slot.spec,
-		char:        char,
-		generation:  generation,
+		kind:             kind,
+		slotIndex:        binding.slotIndex,
+		spec:             slot.spec,
+		char:             char,
+		generation:       generation,
 		visibleAtEnqueue: visibleAtEnqueue,
-		sequence:    sequence,
-		needsPatch:  needsPatch,
-		releaseSlot: releaseSlot,
+		sequence:         sequence,
+		needsPatch:       needsPatch,
+		releaseSlot:      releaseSlot,
+		isKorean:         d.korean,
 	})
 }
 
@@ -1980,7 +2062,8 @@ func (d *Daemon) outputComposeChar(char rune, backspaces int, batchReplace bool,
 		return fmt.Errorf("patcher not initialized")
 	}
 
-	layoutWasActive := d.layoutActive
+	c := d.currentCache()
+	layoutWasActive := c.layoutActive
 	var (
 		binding outputSlotBinding
 		err     error
@@ -2020,7 +2103,8 @@ func (d *Daemon) outputChar(char rune, backspaces int, batchReplace bool) error 
 		return fmt.Errorf("patcher not initialized")
 	}
 
-	layoutWasActive := d.layoutActive
+	c := d.currentCache()
+	layoutWasActive := c.layoutActive
 	binding, err := d.reserveCommitSlot(char, false)
 	if err != nil {
 		return fmt.Errorf("assign output slot: %w", err)
@@ -2615,6 +2699,9 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 				log.Printf("[OUTPUT] special passthrough output failed: %v", err)
 				return
 			}
+			if !d.korean {
+				d.restoreKeymap()
+			}
 			d.resetCompose()
 			return
 		}
@@ -2927,7 +3014,7 @@ func (d *Daemon) reconcileInputsLocked(devices []DeviceInfo) {
 			log.Printf("Failed to add input device: %s (%s): %v", info.Path, info.Name, err)
 		}
 	}
-	if len(d.inputs) == 0 && d.layoutActive {
+	if len(d.inputs) == 0 && (d.koreanCache.layoutActive || d.englishCache.layoutActive) {
 		if err := d.restoreOutputLayout(); err != nil {
 			log.Printf("No input devices: failed to restore output layout: %v", err)
 		}
@@ -3003,7 +3090,7 @@ func (d *Daemon) run(preferredPath string) error {
 							log.Printf("[OUTPUT] commit current failed during input removal: %v", err)
 						}
 						d.removeInputDeviceLocked(msg.Path)
-						if len(d.inputs) == 0 && d.layoutActive {
+						if len(d.inputs) == 0 && (d.koreanCache.layoutActive || d.englishCache.layoutActive) {
 							if err := d.restoreOutputLayout(); err != nil {
 								log.Printf("No input devices: failed to restore output layout: %v", err)
 							}
@@ -3036,9 +3123,17 @@ func (d *Daemon) cleanup() {
 	d.closeAllInputsLocked()
 	d.stopOutputWorkerLocked()
 	if d.patcher != nil {
-		for _, slot := range d.outputSlots {
-			_ = d.patcher.restoreKeyEntry(slot.spec.code, slot.spec.mod)
+		restoreAll := func(c *LayoutCache) {
+			if c == nil {
+				return
+			}
+			for _, slot := range c.outputSlots {
+				_ = d.patcher.restoreKeyEntry(slot.spec.code, slot.spec.mod)
+			}
 		}
+		restoreAll(d.koreanCache)
+		restoreAll(d.englishCache)
+
 		if err := d.patcher.writeToDisk(d.patcher.origUnicode, d.patcher.origQtcode); err != nil {
 			log.Printf("[PATCHER] Failed to restore original file: %v", err)
 		} else {
