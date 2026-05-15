@@ -111,13 +111,16 @@ async function updateKeyboardSettings(
       fi
       SWAP_LEFT_CTRL_CAPSLOCK=${swapLeftCtrlCapsLock ? "1" : "0"}
       printf 'INSTALL_HANGUL=%s\nINSTALL_BT=%s\nSWAP_LEFT_CTRL_CAPSLOCK=%s\nBT_DEVICE_ADDRESS=%s\nKEYBOARD_LOCALES=%s\n' "\${INSTALL_HANGUL:-0}" "\${INSTALL_BT:-0}" "$SWAP_LEFT_CTRL_CAPSLOCK" "\${BT_DEVICE_ADDRESS:-}" "\${KEYBOARD_LOCALES:-}" > "$STATE_FILE"
-      HANGUL_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
-      if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$HANGUL_SERVICE_LINK" != "/dev/null" ]; then
+      
+      DAEMON_RESTARTED=0
+      if systemctl is-active rekoit-daemon 2>/dev/null >&2; then
+        systemctl restart rekoit-daemon 2>/dev/null || true
+        DAEMON_RESTARTED=1
+      elif systemctl is-active hangul-daemon 2>/dev/null >&2; then
         systemctl restart hangul-daemon 2>/dev/null || true
-        echo "DAEMON_RESTARTED=1"
-      else
-        echo "DAEMON_RESTARTED=0"
+        DAEMON_RESTARTED=1
       fi
+      echo "DAEMON_RESTARTED=$DAEMON_RESTARTED"
     `,
   );
   const values = parseKeyValues(output);

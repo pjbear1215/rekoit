@@ -93,6 +93,17 @@ const (
 	KEY_SPACE      = 57
 	KEY_CAPSLOCK   = 58
 	KEY_TAB        = 15
+	KEY_ESC        = 1
+	KEY_UP         = 103
+	KEY_LEFT       = 105
+	KEY_RIGHT      = 106
+	KEY_DOWN       = 108
+	KEY_HOME       = 102
+	KEY_END        = 107
+	KEY_PAGEUP     = 104
+	KEY_PAGEDOWN   = 109
+	KEY_INSERT     = 110
+	KEY_DELETE     = 111
 
 	// uinput
 	UI_SET_EVBIT   = 0x40045564
@@ -107,7 +118,7 @@ const (
 )
 
 const (
-	maxKeyCode             = KEY_CAPSLOCK
+	maxKeyCode             = KEY_DELETE
 	invalidIndex8          = int8(-1)
 	debugLogging           = false
 	installStatePath       = "/home/root/rekoit/install-state.conf"
@@ -171,13 +182,13 @@ const (
 	outputSlotResident
 	outputSlotPreviewVisible
 	outputSlotReservedCommit
+	outputSlotStatic
 )
 
 type outputSlot struct {
-	spec     keyPatchSpec
-	char     rune
-	lastUsed uint64
-	state    outputSlotState
+	spec  keyPatchSpec
+	char  rune
+	state outputSlotState
 }
 
 type DeviceInfo struct {
@@ -241,10 +252,8 @@ type renderBatchMeta struct {
 }
 
 type outputSlotSnapshot struct {
-	prevChar     rune
-	prevLastUsed uint64
-	prevTick     uint64
-	prevState    outputSlotState
+	prevChar  rune
+	prevState outputSlotState
 }
 
 type outputSlotBinding struct {
@@ -639,57 +648,38 @@ func keyCodeName(code uint16) string {
 	}
 }
 
-func digitPlainSpecs() []keyPatchSpec {
-	return nil
-}
-
-func digitShiftSpecs() []keyPatchSpec {
-	return nil
-}
-
-func alphaPlainSpecs() []keyPatchSpec {
-	return []keyPatchSpec{
-		{KEY_Q, 'q', 'Q', 0}, {KEY_W, 'w', 'W', 0}, {KEY_E, 'e', 'E', 0}, {KEY_R, 'r', 'R', 0},
-		{KEY_T, 't', 'T', 0}, {KEY_Y, 'y', 'Y', 0}, {KEY_U, 'u', 'U', 0}, {KEY_I, 'i', 'I', 0},
-		{KEY_O, 'o', 'O', 0}, {KEY_P, 'p', 'P', 0}, {KEY_A, 'a', 'A', 0}, {KEY_S, 's', 'S', 0},
-		{KEY_D, 'd', 'D', 0}, {KEY_F, 'f', 'F', 0}, {KEY_G, 'g', 'G', 0}, {KEY_H, 'h', 'H', 0},
-		{KEY_J, 'j', 'J', 0}, {KEY_K, 'k', 'K', 0}, {KEY_L, 'l', 'L', 0}, {KEY_Z, 'z', 'Z', 0},
-		{KEY_X, 'x', 'X', 0}, {KEY_C, 'c', 'C', 0}, {KEY_V, 'v', 'V', 0}, {KEY_B, 'b', 'B', 0},
-		{KEY_N, 'n', 'N', 0}, {KEY_M, 'm', 'M', 0},
-	}
-}
-
-func alphaShiftSpecs() []keyPatchSpec {
-	return []keyPatchSpec{
-		{KEY_Q, 'Q', 'Q', 1}, {KEY_W, 'W', 'W', 1}, {KEY_E, 'E', 'E', 1}, {KEY_R, 'R', 'R', 1},
-		{KEY_T, 'T', 'T', 1}, {KEY_Y, 'Y', 'Y', 1}, {KEY_U, 'U', 'U', 1}, {KEY_I, 'I', 'I', 1},
-		{KEY_O, 'O', 'O', 1}, {KEY_P, 'P', 'P', 1}, {KEY_A, 'A', 'A', 1}, {KEY_S, 'S', 'S', 1},
-		{KEY_D, 'D', 'D', 1}, {KEY_F, 'F', 'F', 1}, {KEY_G, 'G', 'G', 1}, {KEY_H, 'H', 'H', 1},
-		{KEY_J, 'J', 'J', 1}, {KEY_K, 'K', 'K', 1}, {KEY_L, 'L', 'L', 1}, {KEY_Z, 'Z', 'Z', 1},
-		{KEY_X, 'X', 'X', 1}, {KEY_C, 'C', 'C', 1}, {KEY_V, 'V', 'V', 1}, {KEY_B, 'B', 'B', 1},
-		{KEY_N, 'N', 'N', 1}, {KEY_M, 'M', 'M', 1},
-	}
-}
-
-func symbolPlainSpecs() []keyPatchSpec {
-	return []keyPatchSpec{
-		{KEY_SEMICOLON, ';', ';', 0}, {KEY_APOSTROPHE, '\'', '\'', 0}, {KEY_COMMA, ',', ',', 0},
-		{KEY_DOT, '.', '.', 0}, {KEY_SLASH, '/', '/', 0},
-	}
-}
-
-func symbolShiftSpecs() []keyPatchSpec {
-	return []keyPatchSpec{
-		{KEY_SEMICOLON, ':', ':', 1}, {KEY_APOSTROPHE, '"', '"', 1}, {KEY_COMMA, '<', '<', 1},
-		{KEY_DOT, '>', '>', 1}, {KEY_SLASH, '?', '?', 1},
-	}
-}
-
 func allOutputSlotSpecs() []keyPatchSpec {
-	specs := make([]keyPatchSpec, 0, 52)
-	specs = append(specs, alphaPlainSpecs()...)
-	specs = append(specs, alphaShiftSpecs()...)
+	// Keys to EXCLUDE (Reserved for Shortcuts):
+	// A(30), B(48), C(46), F(33), I(23), N(49), O(24), V(47), W(17), X(45), Y(21), Z(44)
+	
+	// Unshifted Non-Reserved (14)
+	unshifted := []keyPatchSpec{
+		{KEY_D, 'd', 'D', 0}, {KEY_E, 'e', 'E', 0}, {KEY_G, 'g', 'G', 0}, {KEY_H, 'h', 'H', 0},
+		{KEY_J, 'j', 'J', 0}, {KEY_K, 'k', 'K', 0}, {KEY_L, 'l', 'L', 0}, {KEY_M, 'm', 'M', 0},
+		{KEY_P, 'p', 'P', 0}, {KEY_Q, 'q', 'Q', 0}, {KEY_R, 'r', 'R', 0}, {KEY_S, 's', 'S', 0},
+		{KEY_T, 't', 'T', 0}, {KEY_U, 'u', 'U', 0},
+	}
+
+	// Shifted Non-Reserved (14)
+	shifted := []keyPatchSpec{
+		{KEY_D, 'D', 'D', 1}, {KEY_E, 'E', 'E', 1}, {KEY_G, 'G', 'G', 1}, {KEY_H, 'H', 'H', 1},
+		{KEY_J, 'J', 'J', 1}, {KEY_K, 'K', 'K', 1}, {KEY_L, 'L', 'L', 1}, {KEY_M, 'M', 'M', 1},
+		{KEY_P, 'P', 'P', 1}, {KEY_Q, 'Q', 'Q', 1}, {KEY_R, 'R', 'R', 1}, {KEY_S, 'S', 'S', 1},
+		{KEY_T, 'T', 'T', 1}, {KEY_U, 'U', 'U', 1},
+	}
+
+	specs := make([]keyPatchSpec, 0, 28)
+	specs = append(specs, unshifted...)
+	specs = append(specs, shifted...)
+
 	return specs
+}
+
+func staticHighFrequencyChars() []rune {
+	return []rune{
+		'이', '는', '다', '의', '가', '을', '에', '하', '거', '기',
+		'고', '어', '한', '도', '를', '지', '있', '나', '만', '데',
+	}
 }
 
 func (kp *KeymapPatcher) initKeyEntry(spec keyPatchSpec) error {
@@ -942,45 +932,45 @@ type LayoutCache struct {
 	composeSlotActive bool
 	composeSlotIndex  int
 	layoutActive      bool
-	lruUseTick        uint64
 }
 
 type Daemon struct {
-	mu             sync.Mutex
-	inputs         map[string]*ManagedInput
-	inputCh        chan InputMessage
-	rescanCh       chan struct{}
-	outputCh       chan outputJob
-	outputResultCh chan outputResult
-	outputStopCh   chan struct{}
-	outputWg       sync.WaitGroup
-	uinputFd       *os.File
-	korean         bool
-	swapLeftCtrlCapsLock bool
-	shifted        bool
-	leftShiftDown  bool
-	rightShiftDown bool
-	shiftForwarded bool
+	mu                     sync.Mutex
+	inputs                 map[string]*ManagedInput
+	inputCh                chan InputMessage
+	rescanCh               chan struct{}
+	outputCh               chan outputJob
+	outputResultCh         chan outputResult
+	outputStopCh           chan struct{}
+	outputWg               sync.WaitGroup
+	uinputFd               *os.File
+	korean                 bool
+	swapLeftCtrlCapsLock   bool
+	shifted                bool
+	leftShiftDown          bool
+	rightShiftDown         bool
+	shiftForwarded         bool
 	shiftSpaceTogglePending bool
-	ctrl_or_alt    bool
-	leftCtrlDown   bool
-	leftAltDown    bool
-	pendingVisible bool
-	visibleChar    rune
-	previewPending bool
-	previewChar    rune
-	composeGeneration uint64
-	pendingMiss    bool
-	pendingMissChar rune
-	lastTypingAt   time.Time
-	lastKeyGap     time.Duration
-	hangul         HangulState
-	patcher        *KeymapPatcher
-	idleFlushSeq   uint64
-	idleFlushCmdCh chan idleFlushCommand
-	koreanCache    *LayoutCache
-	englishCache   *LayoutCache
-	renderLatestJobs     []outputJob
+	ctrl_or_alt            bool
+	leftCtrlDown           bool
+	leftAltDown            bool
+	pendingVisible         bool
+	visibleChar            rune
+	previewPending         bool
+	previewChar            rune
+	composeGeneration      uint64
+	pendingMiss            bool
+	pendingMissChar        rune
+	lastTypingAt           time.Time
+	lastKeyGap             time.Duration
+	hangul                 HangulState
+	patcher                *KeymapPatcher
+	idleFlushSeq           uint64
+	idleFlushCmdCh         chan idleFlushCommand
+	koreanCache            *LayoutCache
+	englishCache           *LayoutCache
+	dynamicRoundRobinIndex int
+	renderLatestJobs       []outputJob
 	renderLatestSet      []bool
 	renderDroppedPreview []bool
 	renderReleaseSet     []bool
@@ -988,6 +978,7 @@ type Daemon struct {
 	renderFiltered       []outputJob
 	renderTouchedDropped []int
 	renderReleaseSlots   []int
+	physicallyBypassed   [256]bool
 }
 
 func isBluetoothKeyboardDevice(info DeviceInfo) bool {
@@ -1113,10 +1104,23 @@ func (d *Daemon) recreateUinput() error {
 
 	if _, err := findXochitlPID(); err != nil {
 		time.Sleep(80 * time.Millisecond)
-		return nil
+	} else {
+		if err := d.waitForUinputReady(uinputReadyTimeout); err != nil {
+			log.Printf("[UINPUT] ready wait timed out: %v", err)
+		}
 	}
-	if err := d.waitForUinputReady(uinputReadyTimeout); err != nil {
-		log.Printf("[UINPUT] ready wait timed out: %v", err)
+
+	// Restore physical modifier state to the new uinput device.
+	// This prevents text selection (Shift+Arrow) or shortcuts from breaking
+	// when the device is recreated (e.g., when Ctrl is pressed to enter shortcut mode).
+	// Must be done AFTER xochitl has opened the new uinput device.
+	d.mu.Lock()
+	modSeq := d.restoreModifiers()
+	d.mu.Unlock()
+	if len(modSeq) > 0 {
+		if err := d.emitSequence(modSeq); err != nil {
+			log.Printf("[UINPUT] failed to restore modifiers after recreate: %v", err)
+		}
 	}
 
 	return nil
@@ -1330,7 +1334,12 @@ func (d *Daemon) applyOutputResultLocked(result outputResult) {
 			slot.state = outputSlotFree
 			continue
 		}
-		slot.state = outputSlotResident
+		// Indices 0-19 are static high-frequency characters
+		if slotIndex < 20 {
+			slot.state = outputSlotStatic
+		} else {
+			slot.state = outputSlotResident
+		}
 	}
 	if result.previewShown {
 		if result.generation == d.composeGeneration {
@@ -1731,23 +1740,6 @@ func (d *Daemon) currentCache() *LayoutCache {
 	return d.englishCache
 }
 
-func (d *Daemon) initOutputLayout() error {
-	initCache := func(c *LayoutCache) {
-		specs := c.outputSpecs
-		c.outputMap = make(map[rune]mappedKey, len(specs))
-		c.outputIndex = make(map[rune]int, len(specs))
-		c.outputSlots = make([]outputSlot, len(specs))
-		c.composeSlotActive = false
-		c.composeSlotIndex = -1
-		for i, spec := range specs {
-			c.outputSlots[i] = outputSlot{spec: spec, state: outputSlotFree}
-		}
-	}
-	initCache(d.koreanCache)
-	initCache(d.englishCache)
-	return nil
-}
-
 func (d *Daemon) initOutputSpecs() error {
 	d.koreanCache = &LayoutCache{}
 	d.englishCache = &LayoutCache{}
@@ -1764,19 +1756,46 @@ func (d *Daemon) initOutputSpecs() error {
 		return nil
 	}
 
-	koreanSpecs := append(alphaPlainSpecs(), alphaShiftSpecs()...)
-	if err := loadSpecs(d.koreanCache, koreanSpecs); err != nil {
+	allSpecs := allOutputSlotSpecs()
+	if err := loadSpecs(d.koreanCache, allSpecs); err != nil {
 		return err
 	}
-	englishSpecs := append(symbolPlainSpecs(), symbolShiftSpecs()...)
-	if err := loadSpecs(d.englishCache, englishSpecs); err != nil {
+	if err := loadSpecs(d.englishCache, allSpecs); err != nil {
 		return err
 	}
 
-	if len(d.koreanCache.outputSpecs) == 0 && len(d.englishCache.outputSpecs) == 0 {
+	if len(d.koreanCache.outputSpecs) == 0 {
 		return fmt.Errorf("no supported output slot specs found")
 	}
 	return d.patcher.openMappedFile()
+}
+
+func (d *Daemon) initOutputLayout() error {
+	initCache := func(c *LayoutCache, isKorean bool) {
+		specs := c.outputSpecs
+		c.outputMap = make(map[rune]mappedKey, len(specs))
+		c.outputIndex = make(map[rune]int, len(specs))
+		c.outputSlots = make([]outputSlot, len(specs))
+		c.composeSlotActive = false
+		c.composeSlotIndex = -1
+
+		hfChars := staticHighFrequencyChars()
+		for i, spec := range specs {
+			c.outputSlots[i] = outputSlot{spec: spec, state: outputSlotFree}
+			// Statically map the first 20 slots in Korean mode
+			if isKorean && i < len(hfChars) {
+				char := hfChars[i]
+				c.outputSlots[i].char = char
+				c.outputSlots[i].state = outputSlotStatic
+				c.outputMap[char] = mappedKeyFromSpec(spec)
+				c.outputIndex[char] = i
+			}
+		}
+	}
+	d.dynamicRoundRobinIndex = 0
+	initCache(d.koreanCache, true)
+	initCache(d.englishCache, false)
+	return nil
 }
 
 func (d *Daemon) applyOutputLayoutToDisk() error {
@@ -1858,11 +1877,9 @@ func (d *Daemon) lookupOutputChar(char rune) (mappedKey, bool) {
 		return mappedKey{}, false
 	}
 	slot := &c.outputSlots[idx]
-	if slot.state != outputSlotResident {
+	if slot.state != outputSlotResident && slot.state != outputSlotStatic {
 		return mappedKey{}, false
 	}
-	c.lruUseTick++
-	slot.lastUsed = c.lruUseTick
 	return mappedKeyFromSpec(slot.spec), true
 }
 
@@ -1874,7 +1891,11 @@ func (d *Daemon) clearComposeSlotState() {
 			if slot.char == 0 {
 				slot.state = outputSlotFree
 			} else {
-				slot.state = outputSlotResident
+				if c.composeSlotIndex < 20 {
+					slot.state = outputSlotStatic
+				} else {
+					slot.state = outputSlotResident
+				}
 			}
 		}
 	}
@@ -1884,39 +1905,34 @@ func (d *Daemon) clearComposeSlotState() {
 
 func (d *Daemon) selectOutputSlotIndex() (int, error) {
 	c := d.currentCache()
-	for i := range c.outputSlots {
+
+	// 1. Look for a free dynamic slot
+	for i := 20; i < len(c.outputSlots); i++ {
 		if c.outputSlots[i].state == outputSlotFree {
 			return i, nil
 		}
 	}
-	slotIndex := -1
-	var minUsed uint64 = ^uint64(0)
-	for i := range c.outputSlots {
-		slot := c.outputSlots[i]
-		if slot.state != outputSlotResident {
-			continue
-		}
-		if slot.lastUsed < minUsed {
-			minUsed = slot.lastUsed
-			slotIndex = i
-		}
+
+	// 2. Dynamic slots are full, use Round-Robin eviction on indices 20..27
+	// We have 8 dynamic slots (indices 20-27)
+	dynamicCount := len(c.outputSlots) - 20
+	if dynamicCount <= 0 {
+		return -1, fmt.Errorf("no dynamic output slots available")
 	}
-	if slotIndex >= 0 {
-		return slotIndex, nil
-	}
-	return -1, fmt.Errorf("no output slot available")
+
+	slotIndex := 20 + d.dynamicRoundRobinIndex
+	d.dynamicRoundRobinIndex = (d.dynamicRoundRobinIndex + 1) % dynamicCount
+
+	return slotIndex, nil
 }
 
 func (d *Daemon) bindOutputSlot(slotIndex int, char rune, state outputSlotState) (mappedKey, outputSlotSnapshot, bool) {
 	c := d.currentCache()
 	slot := &c.outputSlots[slotIndex]
 	snapshot := outputSlotSnapshot{
-		prevChar:     slot.char,
-		prevLastUsed: slot.lastUsed,
-		prevTick:     c.lruUseTick,
-		prevState:    slot.state,
+		prevChar:  slot.char,
+		prevState: slot.state,
 	}
-	newTick := snapshot.prevTick + 1
 	key := mappedKeyFromSpec(slot.spec)
 
 	if snapshot.prevChar != 0 {
@@ -1925,8 +1941,6 @@ func (d *Daemon) bindOutputSlot(slotIndex int, char rune, state outputSlotState)
 	}
 	slot.char = char
 	slot.state = state
-	slot.lastUsed = newTick
-	c.lruUseTick = newTick
 	c.outputMap[char] = key
 	c.outputIndex[char] = slotIndex
 	return key, snapshot, snapshot.prevChar != char
@@ -1935,12 +1949,13 @@ func (d *Daemon) bindOutputSlot(slotIndex int, char rune, state outputSlotState)
 func (d *Daemon) rollbackBoundOutputSlot(slotIndex int, snapshot outputSlotSnapshot, char rune) {
 	c := d.currentCache()
 	slot := &c.outputSlots[slotIndex]
+
 	delete(c.outputMap, char)
 	delete(c.outputIndex, char)
+
 	slot.char = snapshot.prevChar
-	slot.lastUsed = snapshot.prevLastUsed
 	slot.state = snapshot.prevState
-	c.lruUseTick = snapshot.prevTick
+
 	if snapshot.prevChar != 0 {
 		key := mappedKeyFromSpec(slot.spec)
 		c.outputMap[snapshot.prevChar] = key
@@ -1964,7 +1979,7 @@ func (d *Daemon) ensurePreviewSlot(char rune) (outputSlotBinding, error) {
 	}
 
 	if idx, ok := c.outputIndex[char]; ok && idx >= 0 && idx < len(c.outputSlots) {
-		if c.outputSlots[idx].state == outputSlotResident {
+		if c.outputSlots[idx].state == outputSlotResident || c.outputSlots[idx].state == outputSlotStatic {
 			key, snapshot, patchNeeded := d.bindOutputSlot(idx, char, outputSlotPreviewVisible)
 			c.composeSlotActive = true
 			c.composeSlotIndex = idx
@@ -2008,7 +2023,7 @@ func (d *Daemon) reserveCommitSlot(char rune, preferCompose bool) (outputSlotBin
 	}
 
 	if idx, ok := c.outputIndex[char]; ok && idx >= 0 && idx < len(c.outputSlots) {
-		if c.outputSlots[idx].state == outputSlotResident {
+		if c.outputSlots[idx].state == outputSlotResident || c.outputSlots[idx].state == outputSlotStatic {
 			key, snapshot, patchNeeded := d.bindOutputSlot(idx, char, outputSlotReservedCommit)
 			return outputSlotBinding{
 				slotIndex:   idx,
@@ -2067,7 +2082,7 @@ func (d *Daemon) enqueueRenderJob(kind outputJobKind, binding outputSlotBinding,
 	})
 }
 
-func (d *Daemon) outputComposeChar(char rune, backspaces int, batchReplace bool, commit bool) error {
+func (d *Daemon) outputComposeChar(char rune, backspaces int, batchReplace bool, commit bool, skipKeystrokes bool) error {
 	if d.patcher == nil {
 		return fmt.Errorf("patcher not initialized")
 	}
@@ -2097,7 +2112,13 @@ func (d *Daemon) outputComposeChar(char rune, backspaces int, batchReplace bool,
 	if commit {
 		jobKind = outputJobCommitRender
 	}
-	if err := d.enqueueRenderJob(jobKind, binding, char, d.buildMappedOutputSequence(binding.key, backspaces, batchReplace), d.composeGeneration, d.pendingVisible, binding.patchNeeded && layoutWasActive, commit); err != nil {
+
+	var seq []outputEvent
+	if !skipKeystrokes {
+		seq = d.buildMappedOutputSequence(binding.key, backspaces, batchReplace)
+	}
+
+	if err := d.enqueueRenderJob(jobKind, binding, char, seq, d.composeGeneration, d.pendingVisible, binding.patchNeeded && layoutWasActive, commit); err != nil {
 		d.rollbackBoundOutputSlot(binding.slotIndex, binding.snapshot, char)
 		if !commit && binding.snapshot.prevState != outputSlotPreviewVisible {
 			d.clearComposeSlotState()
@@ -2357,7 +2378,7 @@ func (d *Daemon) commitPendingChar(char rune) error {
 	if d.pendingVisible || d.previewPending {
 		backspaces = 1
 	}
-	if err := d.outputComposeChar(char, backspaces, true, false); err != nil {
+	if err := d.outputComposeChar(char, backspaces, true, false, false); err != nil {
 		return err
 	}
 	d.previewPending = true
@@ -2376,7 +2397,7 @@ func (d *Daemon) renderBackspaceStep(char rune) error {
 	if d.pendingVisible || d.previewPending {
 		backspaces = 1
 	}
-	if err := d.outputComposeChar(char, backspaces, false, false); err != nil {
+	if err := d.outputComposeChar(char, backspaces, false, false, false); err != nil {
 		return err
 	}
 	d.previewPending = true
@@ -2386,11 +2407,12 @@ func (d *Daemon) renderBackspaceStep(char rune) error {
 
 func (d *Daemon) commitCurrent() error {
 	if char, ok := d.currentPendingChar(); ok {
+		skipKeystrokes := d.previewPending && d.previewChar == char
 		backspaces := 0
-		if d.pendingVisible || d.previewPending {
+		if !skipKeystrokes && (d.pendingVisible || d.previewPending) {
 			backspaces = 1
 		}
-		if err := d.outputComposeChar(char, backspaces, true, true); err != nil {
+		if err := d.outputComposeChar(char, backspaces, true, true, skipKeystrokes); err != nil {
 			return err
 		}
 	}
@@ -2643,19 +2665,23 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 	}
 	// Ctrl Alt state check
 	if ev.Code == KEY_LEFTCTRL || ev.Code == KEY_LEFTALT {
+		if ev.Value == keyPress {
+			// Commit pending character BEFORE updating the internal Ctrl/Alt state.
+			// This prevents the commit logic from incorrectly assuming Ctrl is already
+			// held down and sending phantom 'Ctrl Up' events.
+			if err := d.commitCurrent(); err != nil {
+				log.Printf("[OUTPUT] commit current failed: %v", err)
+			}
+			d.ctrl_or_alt = true
+		}
+
 		if ev.Code == KEY_LEFTCTRL {
 			d.leftCtrlDown = (ev.Value != keyRelease)
 		} else {
 			d.leftAltDown = (ev.Value != keyRelease)
 		}
 
-		if ev.Value == keyPress {
-			d.ctrl_or_alt = true
-			if err := d.commitCurrent(); err != nil {
-				log.Printf("[OUTPUT] commit current failed: %v", err)
-			}
-			d.restoreKeymap()
-		} else if ev.Value == keyRelease {
+		if ev.Value == keyRelease {
 			d.ctrl_or_alt = d.leftCtrlDown || d.leftAltDown
 		}
 		d.passthrough(ev)
@@ -2707,9 +2733,6 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 				log.Printf("[OUTPUT] special passthrough output failed: %v", err)
 				return
 			}
-			if !d.korean {
-				d.restoreKeymap()
-			}
 			d.resetCompose()
 			return
 		}
@@ -2717,6 +2740,19 @@ func (d *Daemon) handleEvent(ev InputEvent) {
 
 	// Bypass everything while Ctrl or Alt is pressed (except special shortcuts handled above)
 	if d.ctrl_or_alt {
+		if ev.Value == keyPress || ev.Value == keyRepeat {
+			if ev.Code < 256 {
+				d.physicallyBypassed[ev.Code] = true
+			}
+		}
+		d.passthrough(ev)
+		return
+	}
+
+	// Guarantee key release for physically bypassed keys even after bypass mode is exited.
+	// This prevents "stuck keys" if Ctrl is released before the shortcut key.
+	if ev.Value == keyRelease && ev.Code < 256 && d.physicallyBypassed[ev.Code] {
+		d.physicallyBypassed[ev.Code] = false
 		d.passthrough(ev)
 		return
 	}

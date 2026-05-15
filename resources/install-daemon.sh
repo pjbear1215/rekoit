@@ -11,21 +11,27 @@ install_hangul_font() {
 }
 
 install_hangul_runtime() {
-    echo "[7/10] Installing hangul-daemon service..."
+    echo "[7/10] Installing rekoit-daemon service..."
     systemctl stop xochitl 2>/dev/null || true
+    systemctl stop rekoit-daemon.service 2>/dev/null || true
     systemctl stop hangul-daemon.service 2>/dev/null || true
+    killall rekoit-daemon 2>/dev/null || true
     killall hangul-daemon 2>/dev/null || true
     unmount_libepaper_mounts
     rm -f "$LIBEPAPER_TMPFS"
     sleep 1
 
     if [ -f "$SERVICE_SRC" ]; then
-        cp "$SERVICE_SRC" /etc/systemd/system/hangul-daemon.service
+        cp "$SERVICE_SRC" /etc/systemd/system/rekoit-daemon.service
         mkdir -p /etc/systemd/system/multi-user.target.wants
-        ln -sf /etc/systemd/system/hangul-daemon.service /etc/systemd/system/multi-user.target.wants/hangul-daemon.service
+        ln -sf /etc/systemd/system/rekoit-daemon.service /etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
+        # Clean up old service files
+        rm -f /etc/systemd/system/hangul-daemon.service
+        rm -f /etc/systemd/system/multi-user.target.wants/hangul-daemon.service
+
         systemctl daemon-reload
-        systemctl enable hangul-daemon.service 2>/dev/null || true
-        echo "  OK: hangul-daemon service installed"
+        systemctl enable rekoit-daemon.service 2>/dev/null || true
+        echo "  OK: rekoit-daemon service installed"
     else
         echo "  SKIP: Service file not found ($SERVICE_SRC)"
     fi

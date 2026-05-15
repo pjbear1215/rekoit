@@ -110,7 +110,7 @@ sudo snap install zig --classic --beta
 1. Select `Device Management` in `Step 4. Menu Selection` of the web app.
 2. Select the desired item (Full Uninstall, Partial Removal, etc.) in the `Recovery and Removal` section at the bottom.
 3. **Actions performed during Full Uninstall:**
-   - Stops the `hangul-daemon` service and removes runtime files.
+   - Stops the `rekoit-daemon` service and removes runtime files.
    - Cleans up Bluetooth services and pairing data.
    - Unmounts system libraries (`libepaper.so`).
    - Removes post-update hooks for firmware update compatibility.

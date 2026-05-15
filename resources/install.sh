@@ -10,13 +10,13 @@ BASEDIR="/home/root/rekoit"
 STATE_FILE="$BASEDIR/install-state.conf"
 FONT_SRC="$BASEDIR/fonts/NotoSansCJKkr-Regular.otf"
 FONT_DST="/home/root/.local/share/fonts/rekoit/NotoSansCJKkr-Regular.otf"
-SERVICE_SRC="$BASEDIR/hangul-daemon.service"
+SERVICE_SRC="$BASEDIR/rekoit-daemon.service"
 LIBEPAPER="/usr/lib/plugins/platforms/libepaper.so"
-LIBEPAPER_TMPFS="/dev/shm/hangul-libepaper.so"
+LIBEPAPER_TMPFS="/dev/shm/rekoit-libepaper.so"
 LIBEPAPER_BACKUP="$BASEDIR/backup/libepaper.so.original"
 BT_BACKUP="$BASEDIR/bt-pairing"
 BT_SRC="/var/lib/bluetooth"
-HANGUL_INSTALL_LIB="$BASEDIR/install-hangul.sh"
+DAEMON_INSTALL_LIB="$BASEDIR/install-daemon.sh"
 BT_INSTALL_LIB="$BASEDIR/install-bt.sh"
 
 resolve_libepaper_mount_target() {
@@ -115,11 +115,11 @@ echo "  Mode: hangul=$INSTALL_HANGUL, bt=$INSTALL_BT, btPower=$BLUETOOTH_POWER_O
 echo ""
 
 if [ "$INSTALL_HANGUL" = "1" ]; then
-    if [ ! -f "$HANGUL_INSTALL_LIB" ]; then
-        echo "missing helper: $HANGUL_INSTALL_LIB" >&2
+    if [ ! -f "$DAEMON_INSTALL_LIB" ]; then
+        echo "missing helper: $DAEMON_INSTALL_LIB" >&2
         exit 1
     fi
-    . "$HANGUL_INSTALL_LIB"
+    . "$DAEMON_INSTALL_LIB"
 fi
 
 if [ "$INSTALL_BT" = "1" ]; then
@@ -178,8 +178,8 @@ echo "[9/10] Installing REKOIT restore service..."
 if [ -f "$BASEDIR/rekoit-restore.service" ]; then
     cp "$BASEDIR/rekoit-restore.service" /etc/systemd/system/rekoit-restore.service
     chmod +x "$BASEDIR/restore.sh" "$BASEDIR/post-update.sh"
-    [ -f "$BASEDIR/restore-hangul.sh" ] && chmod +x "$BASEDIR/restore-hangul.sh"
-    [ -f "$BASEDIR/post-update-hangul.sh" ] && chmod +x "$BASEDIR/post-update-hangul.sh"
+    [ -f "$BASEDIR/restore-daemon.sh" ] && chmod +x "$BASEDIR/restore-daemon.sh"
+    [ -f "$BASEDIR/post-update-daemon.sh" ] && chmod +x "$BASEDIR/post-update-daemon.sh"
     [ -f "$BASEDIR/restore-bt.sh" ] && chmod +x "$BASEDIR/restore-bt.sh"
     [ -f "$BASEDIR/post-update-bt.sh" ] && chmod +x "$BASEDIR/post-update-bt.sh"
     [ -f "$BASEDIR/bt-wake-reconnect.sh" ] && chmod +x "$BASEDIR/bt-wake-reconnect.sh"
@@ -196,7 +196,7 @@ fi
 echo "[10/11] Installing SWUpdate post-update hook..."
 POST_UPDATE_SCRIPTS="post-update.sh"
 if [ "$INSTALL_HANGUL" = "1" ]; then
-    POST_UPDATE_SCRIPTS="$POST_UPDATE_SCRIPTS post-update-hangul.sh"
+    POST_UPDATE_SCRIPTS="$POST_UPDATE_SCRIPTS post-update-daemon.sh"
 fi
 if [ "$INSTALL_BT" = "1" ]; then
     POST_UPDATE_SCRIPTS="$POST_UPDATE_SCRIPTS post-update-bt.sh"
@@ -222,7 +222,8 @@ HOME_STATE="/home/root/rekoit"
 
 HAS_BT_ARTIFACTS=0
 
-if [ -f /etc/systemd/system/hangul-daemon.service ] || \
+if [ -f /etc/systemd/system/rekoit-daemon.service ] || \
+   [ -f /etc/systemd/system/hangul-daemon.service ] || \
    [ -f /etc/systemd/system/rekoit-restore.service ] || \
    [ -f /etc/systemd/system/rekoit-bt-wake-reconnect.service ] || \
    [ -f /etc/modules-load.d/btnxpuart.conf ] || \
@@ -241,7 +242,9 @@ if [ -d "$HOME_STATE" ]; then
 fi
 mount -o remount,rw / 2>/dev/null || true
 rm -f /etc/swupdate/conf.d/99-rekoit-postupdate
-# Disable and remove REKOIT common services and hangul runtime
+# Disable and remove REKOIT common services and daemon runtime
+systemctl stop rekoit-daemon.service 2>/dev/null || true
+systemctl disable rekoit-daemon.service 2>/dev/null || true
 systemctl stop hangul-daemon.service 2>/dev/null || true
 systemctl disable hangul-daemon.service 2>/dev/null || true
 systemctl disable rekoit-restore.service 2>/dev/null || true
@@ -249,9 +252,11 @@ systemctl stop rekoit-bt-wake-reconnect.service 2>/dev/null || true
 systemctl disable rekoit-bt-wake-reconnect.service 2>/dev/null || true
 unmount_libepaper_mounts
 rm -f "$LIBEPAPER_TMPFS"
+rm -f /etc/systemd/system/rekoit-daemon.service
 rm -f /etc/systemd/system/hangul-daemon.service
 rm -f /etc/systemd/system/rekoit-restore.service
 rm -f /etc/systemd/system/rekoit-bt-wake-reconnect.service
+rm -f /etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
 rm -f /etc/systemd/system/multi-user.target.wants/hangul-daemon.service
 rm -f /etc/systemd/system/multi-user.target.wants/rekoit-restore.service
 rm -f /etc/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service
@@ -337,11 +342,13 @@ if [ -n "$ROOTFS_DEV" ] && [ "$ROOTFS_DEV" != "$CURRENT_ROOT" ]; then
                 rm -f /mnt/rootfs/etc/modules-load.d/btnxpuart.conf
             fi
 
-            # hangul-daemon service
-            if [ -f /etc/systemd/system/hangul-daemon.service ]; then
-                cp /etc/systemd/system/hangul-daemon.service /mnt/rootfs/etc/systemd/system/
+            # rekoit-daemon service
+            rm -f /mnt/rootfs/etc/systemd/system/hangul-daemon.service
+            rm -f /mnt/rootfs/etc/systemd/system/multi-user.target.wants/hangul-daemon.service
+            if [ -f /etc/systemd/system/rekoit-daemon.service ]; then
+                cp /etc/systemd/system/rekoit-daemon.service /mnt/rootfs/etc/systemd/system/
                 mkdir -p /mnt/rootfs/etc/systemd/system/multi-user.target.wants
-                ln -sf /etc/systemd/system/hangul-daemon.service /mnt/rootfs/etc/systemd/system/multi-user.target.wants/hangul-daemon.service
+                ln -sf /etc/systemd/system/rekoit-daemon.service /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
             fi
 
             if [ "$INSTALL_BT" = "1" ]; then
@@ -417,10 +424,10 @@ if [ "$INSTALL_HANGUL" = "1" ] && [ -f "$FONT_DST" ]; then
     sleep 3
 fi
 
-# Start hangul-daemon
-if [ "$INSTALL_HANGUL" = "1" ] && [ -f "$BASEDIR/hangul-daemon" ]; then
-    echo "  Starting hangul-daemon..."
-    systemctl restart hangul-daemon.service 2>/dev/null || true
+# Start rekoit-daemon
+if [ "$INSTALL_HANGUL" = "1" ] && [ -f "$BASEDIR/rekoit-daemon" ]; then
+    echo "  Starting rekoit-daemon..."
+    systemctl restart rekoit-daemon.service 2>/dev/null || true
     sleep 2
 fi
 
@@ -448,11 +455,11 @@ if [ "$INSTALL_HANGUL" = "1" ]; then
     fi
 
     TOTAL=$((TOTAL+1))
-    if systemctl is-active hangul-daemon.service >/dev/null 2>&1; then
-        echo " [OK] Hangul daemon: running"
+    if systemctl is-active rekoit-daemon.service >/dev/null 2>&1; then
+        echo " [OK] Rekoit daemon: running"
         PASS=$((PASS+1))
     else
-        echo " [--] Hangul daemon: not running"
+        echo " [--] Rekoit daemon: not running"
     fi
 fi
 

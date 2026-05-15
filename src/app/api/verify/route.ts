@@ -29,7 +29,7 @@ const CHECKS: CheckDefinition[] = [
   },
   {
     name: "Input Daemon",
-    command: "systemctl is-active hangul-daemon 2>/dev/null || echo FAIL",
+    command: "(systemctl is-active rekoit-daemon 2>/dev/null || systemctl is-active hangul-daemon 2>/dev/null) && echo OK || echo FAIL",
     requires: "hangul",
   },
   {

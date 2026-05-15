@@ -37,8 +37,8 @@ if mount | grep " /mnt/updated " | grep -q "(ro,"; then
 fi
 
 if [ "$INSTALL_HANGUL" = "1" ]; then
-    . "$BASEDIR/post-update-hangul.sh"
-    post_update_hangul
+    . "$BASEDIR/post-update-daemon.sh"
+    post_update_daemon
 fi
 if [ "$INSTALL_BT" = "1" ]; then
     . "$BASEDIR/post-update-bt.sh"

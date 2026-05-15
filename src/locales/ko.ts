@@ -257,7 +257,7 @@ export const ko = {
     btAutoReconnectGuide: "블루투스 키보드는 전원을 켜면 자동으로 다시 연결을 시도합니다.",
     problemsDetected: "일부 구성 요소에서 문제가 감지되었습니다.",
     hangulIssueGuide: "입력 엔진에 문제가 있다면 기기를 재부팅한 뒤 다시 확인해 보세요.",
-    daemonIssueGuide: "데몬 문제의 경우: systemctl restart hangul-daemon",
+    daemonIssueGuide: "데몬 문제의 경우: systemctl restart rekoit-daemon",
     btIssueGuide: "블루투스 도우미에 문제가 있다면 기기를 재부팅한 뒤 다시 확인해 보세요.",
     startOverGuide: "\"처음부터 다시\"를 클릭하여 설치를 다시 시도해 보세요.",
     connectNewHelp: "다른 키보드를 추가로 연결해야 할 때 사용하세요.",

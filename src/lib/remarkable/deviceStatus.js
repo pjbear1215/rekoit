@@ -139,13 +139,13 @@ export function buildFailureRoutines({
     });
   }
 
-  if (failingChecks.has("hangul-daemon")) {
+  if (failingChecks.has("rekoit-daemon")) {
     routines.push({
-      id: "hangul-runtime",
+      id: "rekoit-runtime",
       title: "Input Engine Runtime Recovery",
       steps: [
         "Restart the device once.",
-        "Restart the daemon using `systemctl restart hangul-daemon`.",
+        "Restart the daemon using `systemctl restart rekoit-daemon`.",
         "If problems persist, run the installation again.",
       ],
     });

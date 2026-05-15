@@ -5,7 +5,7 @@
 set -e
 
 # Exit immediately if the daemon is already running (minimize load during login)
-if systemctl is-active hangul-daemon.service >/dev/null 2>&1; then
+if systemctl is-active rekoit-daemon.service >/dev/null 2>&1; then
     exit 0
 fi
 
@@ -18,9 +18,9 @@ BASEDIR="/home/root/rekoit"
 STATE_FILE="$BASEDIR/install-state.conf"
 FONT_SRC="$BASEDIR/fonts/NotoSansCJKkr-Regular.otf"
 FONT_DST="/home/root/.local/share/fonts/rekoit/NotoSansCJKkr-Regular.otf"
-SERVICE_SRC="$BASEDIR/hangul-daemon.service"
+SERVICE_SRC="$BASEDIR/rekoit-daemon.service"
 LIBEPAPER="/usr/lib/plugins/platforms/libepaper.so"
-LIBEPAPER_TMPFS="/dev/shm/hangul-libepaper.so"
+LIBEPAPER_TMPFS="/dev/shm/rekoit-libepaper.so"
 LIBEPAPER_BACKUP="$BASEDIR/backup/libepaper.so.original"
 LIBEPAPER_NEW_BACKUP="$BASEDIR/backup/libepaper.so.latest"
 CHANGED=0
@@ -94,8 +94,8 @@ if [ -f "$LIBEPAPER" ] && [ -f "$LIBEPAPER_BACKUP" ]; then
 fi
 
 if [ "$INSTALL_HANGUL" = "1" ]; then
-    . "$BASEDIR/restore-hangul.sh"
-    restore_hangul_runtime || true
+    . "$BASEDIR/restore-daemon.sh"
+    restore_daemon_runtime || true
 fi
 if [ "$INSTALL_BT" = "1" ]; then
     # Bluetooth restoration takes time, so run it in the background

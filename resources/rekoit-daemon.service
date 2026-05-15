@@ -1,9 +1,9 @@
 [Unit]
-Description=Hangul Keyboard Daemon
+Description=Rekoit Input Daemon
 
 [Service]
 Type=simple
-ExecStart=/home/root/rekoit/hangul-daemon
+ExecStart=/home/root/rekoit/rekoit-daemon
 Restart=on-failure
 RestartSec=5
 KillSignal=SIGTERM

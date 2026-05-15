@@ -257,7 +257,7 @@ export const en = {
     btAutoReconnectGuide: "Bluetooth keyboards will attempt to reconnect automatically when turned on.",
     problemsDetected: "Problems detected with some components",
     hangulIssueGuide: "If you have issues with the Input Engine, restart your device and check again.",
-    daemonIssueGuide: "For daemon issues: systemctl restart hangul-daemon",
+    daemonIssueGuide: "For daemon issues: systemctl restart rekoit-daemon",
     btIssueGuide: "If you have issues with the Bluetooth Helper, restart your device and check again.",
     startOverGuide: "Click \"Start Over\" to try the installation again.",
     connectNewHelp: "Use this when you need to connect another keyboard.",

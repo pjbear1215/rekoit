@@ -123,12 +123,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         echo "FIRMWARE=$(cat /etc/version 2>/dev/null || echo unknown)"
         echo "FREE_SPACE=$(df -h /home | tail -1 | awk '{print $4}')"
         echo "MODEL=$(cat /proc/device-tree/model 2>/dev/null | tr -d '\\000' || echo unknown)"
-        HANGUL_ENABLED=$(systemctl is-enabled hangul-daemon 2>/dev/null || echo not-found)
-        HANGUL_ACTIVE=$(systemctl is-active hangul-daemon 2>/dev/null || echo inactive)
-        HANGUL_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
-        echo "HANGUL_ENABLED=$HANGUL_ENABLED"
-        echo "HANGUL_ACTIVE=$HANGUL_ACTIVE"
-        if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$HANGUL_SERVICE_LINK" != "/dev/null" ]; then
+        DAEMON_ENABLED=$(systemctl is-enabled rekoit-daemon 2>/dev/null || echo not-found)
+        DAEMON_ACTIVE=$(systemctl is-active rekoit-daemon 2>/dev/null || echo inactive)
+        DAEMON_SERVICE_LINK=$(readlink /etc/systemd/system/rekoit-daemon.service 2>/dev/null || true)
+        
+        # Backward compatibility for status reporting
+        if [ "$DAEMON_ENABLED" = "not-found" ]; then
+           DAEMON_ENABLED=$(systemctl is-enabled hangul-daemon 2>/dev/null || echo not-found)
+           DAEMON_ACTIVE=$(systemctl is-active hangul-daemon 2>/dev/null || echo inactive)
+           DAEMON_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
+        fi
+
+        echo "HANGUL_ENABLED=$DAEMON_ENABLED"
+        echo "HANGUL_ACTIVE=$DAEMON_ACTIVE"
+        if ([ -e /etc/systemd/system/rekoit-daemon.service ] && [ "$DAEMON_SERVICE_LINK" != "/dev/null" ]) || \
+           ([ -e /etc/systemd/system/hangul-daemon.service ] && [ "$DAEMON_SERVICE_LINK" != "/dev/null" ]); then
           echo "HANGUL_SERVICE=yes"
         else
           echo "HANGUL_SERVICE=no"
@@ -163,11 +172,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           mount -o ro "$INACTIVE" /mnt/device_status 2>/dev/null || true
         fi
         if [ -n "$INACTIVE" ] && [ -d /mnt/device_status/etc ]; then
-          INACTIVE_DAEMON_LINK=$(readlink /mnt/device_status/etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
-          if [ -e /mnt/device_status/etc/systemd/system/hangul-daemon.service ] && [ "$INACTIVE_DAEMON_LINK" != "/dev/null" ]; then
+          INACTIVE_DAEMON_LINK=$(readlink /mnt/device_status/etc/systemd/system/rekoit-daemon.service 2>/dev/null || true)
+          if [ -e /mnt/device_status/etc/systemd/system/rekoit-daemon.service ] && [ "$INACTIVE_DAEMON_LINK" != "/dev/null" ]; then
             echo "INACTIVE_DAEMON=yes"
           else
-            echo "INACTIVE_DAEMON=no"
+            INACTIVE_DAEMON_LINK=$(readlink /mnt/device_status/etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
+            if [ -e /mnt/device_status/etc/systemd/system/hangul-daemon.service ] && [ "$INACTIVE_DAEMON_LINK" != "/dev/null" ]; then
+              echo "INACTIVE_DAEMON=yes"
+            else
+              echo "INACTIVE_DAEMON=no"
+            fi
           fi
           [ -f /mnt/device_status/etc/systemd/system/rekoit-restore.service ] && echo "INACTIVE_RESTORE=yes" || echo "INACTIVE_RESTORE=no"
           [ -f /mnt/device_status/etc/systemd/system/rekoit-factory-guard.service ] && echo "INACTIVE_FACTORY=yes" || echo "INACTIVE_FACTORY=no"
@@ -229,7 +243,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             : "Cleanup guard is missing.",
       },
       {
-        id: "hangul-daemon",
+        id: "rekoit-daemon",
         label: "Input Engine Daemon",
         pass: !hasHangulRuntime || values.HANGUL_ACTIVE === "active",
         detail: !hasHangulRuntime

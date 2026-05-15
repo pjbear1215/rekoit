@@ -30,11 +30,11 @@ const FILES_COMMON: FileMapping[] = [
 ];
 
 const FILES_HANGUL: FileMapping[] = [
-  { local: "install-hangul.sh", remote: "install-hangul.sh" },
-  { local: "restore-hangul.sh", remote: "restore-hangul.sh" },
-  { local: "post-update-hangul.sh", remote: "post-update-hangul.sh" },
-  { local: "hangul-daemon/hangul-daemon", remote: "hangul-daemon" },
-  { local: "hangul-daemon.service", remote: "hangul-daemon.service" },
+  { local: "install-daemon.sh", remote: "install-daemon.sh" },
+  { local: "restore-daemon.sh", remote: "restore-daemon.sh" },
+  { local: "post-update-daemon.sh", remote: "post-update-daemon.sh" },
+  { local: "rekoit-daemon/rekoit-daemon", remote: "rekoit-daemon" },
+  { local: "rekoit-daemon.service", remote: "rekoit-daemon.service" },
   {
     local: "fonts/NotoSansCJKkr-Regular.otf",
     remote: "fonts/NotoSansCJKkr-Regular.otf",
@@ -179,7 +179,7 @@ function shouldShowInstallLogLine(line: string, state: InstallState): boolean {
   if (trimmed.includes("uploaded")) return false;
   if (trimmed.includes("SKIP:")) return false;
   if (!state.installHangul) {
-    if (trimmed.includes("hangul-daemon")) return false;
+    if (trimmed.includes("rekoit-daemon") || trimmed.includes("hangul-daemon")) return false;
     if (trimmed.includes("NotoSansCJKkr")) return false;
     if (trimmed.includes("libepaper")) return false;
     if (trimmed.includes("login restore")) return false;
@@ -242,11 +242,16 @@ async function detectInstalledState(
       else
         echo "HANGUL_FONT=no"
       fi
-      HANGUL_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
-      if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$HANGUL_SERVICE_LINK" != "/dev/null" ]; then
-        echo "HANGUL_RUNTIME=yes"
+      DAEMON_SERVICE_LINK=$(readlink /etc/systemd/system/rekoit-daemon.service 2>/dev/null || true)
+      if [ -e /etc/systemd/system/rekoit-daemon.service ] && [ "$DAEMON_SERVICE_LINK" != "/dev/null" ]; then
+        echo "HANGUL_INSTALLED=1"
       else
-        echo "HANGUL_RUNTIME=no"
+        DAEMON_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
+        if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$DAEMON_SERVICE_LINK" != "/dev/null" ]; then
+          echo "HANGUL_INSTALLED=1"
+        else
+          echo "HANGUL_INSTALLED=0"
+        fi
       fi
       if [ -f /etc/modules-load.d/btnxpuart.conf ]; then
         echo "BT_RUNTIME=yes"
@@ -307,7 +312,7 @@ async function verifyInstalledRuntime(
     return false;
   }
   if (expectedState.installHangul) {
-    const daemonState = await runSsh(ip, password, "systemctl is-active hangul-daemon 2>/dev/null || true");
+    const daemonState = await runSsh(ip, password, "(systemctl is-active rekoit-daemon || systemctl is-active hangul-daemon) 2>/dev/null || true");
     if (!daemonState.includes("active")) {
       return false;
     }
@@ -339,19 +344,19 @@ function runLocal(command: string, cwd?: string, timeout = 120000): Promise<stri
   });
 }
 
-async function buildHangulDaemon(
+async function buildRekoitDaemon(
   resourceDir: string,
   send: (event: string, data: Record<string, unknown>) => void,
 ): Promise<void> {
-  const outputPath = path.join(resourceDir, "hangul-daemon/hangul-daemon");
-  const sourceDir = path.resolve(process.cwd(), "services/hangul-daemon");
+  const outputPath = path.join(resourceDir, "rekoit-daemon/rekoit-daemon");
+  const sourceDir = path.resolve(process.cwd(), "services/rekoit-daemon");
   const sourceFiles = [
     path.join(sourceDir, "main.go"),
     path.join(sourceDir, "go.mod"),
   ];
 
   if (!shouldRebuildArtifact(outputPath, sourceFiles)) {
-    send("log", { line: "OK: hangul-daemon (already built)" });
+    send("log", { line: "OK: rekoit-daemon (already built)" });
     return;
   }
 
@@ -367,7 +372,7 @@ async function buildHangulDaemon(
     sourceDir,
     180000,
   );
-  send("log", { line: "OK: hangul-daemon build complete" });
+  send("log", { line: "OK: rekoit-daemon build complete" });
 }
 
 async function buildBluetoothHelper(
@@ -471,18 +476,21 @@ unmount_libepaper_mounts() {
 echo "[1/7] Stopping services..."
 systemctl stop xochitl 2>/dev/null || true
 systemctl stop bluetooth.service 2>/dev/null || true
-for svc in hangul-daemon.service rekoit-restore.service rekoit-factory-guard.service rekoit-bt-agent.service rekoit-bt-wake-reconnect.service; do
+for svc in rekoit-daemon.service hangul-daemon.service rekoit-restore.service rekoit-factory-guard.service rekoit-bt-agent.service rekoit-bt-wake-reconnect.service; do
     systemctl stop "$svc" 2>/dev/null || true
     systemctl disable "$svc" 2>/dev/null || true
 done
+killall rekoit-daemon 2>/dev/null || true
 killall hangul-daemon 2>/dev/null || true
 
 echo "[2/7] Cleaning up active partition..."
+rm -f /etc/systemd/system/rekoit-daemon.service
 rm -f /etc/systemd/system/hangul-daemon.service
 rm -f /etc/systemd/system/rekoit-restore.service
 rm -f /etc/systemd/system/rekoit-factory-guard.service
 rm -f /etc/systemd/system/rekoit-bt-agent.service
 rm -f /etc/systemd/system/rekoit-bt-wake-reconnect.service
+rm -f /etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
 rm -f /etc/systemd/system/multi-user.target.wants/hangul-daemon.service
 rm -f /etc/systemd/system/multi-user.target.wants/rekoit-restore.service
 rm -f /etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service
@@ -526,11 +534,13 @@ if [ -n "$ROOTFS_DEV" ]; then
     mkdir -p /mnt/rootfs
     mount -o rw "$ROOTFS_DEV" /mnt/rootfs 2>/dev/null || true
     if [ -d /mnt/rootfs/etc ]; then
+        rm -f /mnt/rootfs/etc/systemd/system/rekoit-daemon.service
         rm -f /mnt/rootfs/etc/systemd/system/hangul-daemon.service
         rm -f /mnt/rootfs/etc/systemd/system/rekoit-restore.service
         rm -f /mnt/rootfs/etc/systemd/system/rekoit-factory-guard.service
         rm -f /mnt/rootfs/etc/systemd/system/rekoit-bt-agent.service
         rm -f /mnt/rootfs/etc/systemd/system/rekoit-bt-wake-reconnect.service
+        rm -f /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
         rm -f /mnt/rootfs/etc/systemd/system/multi-user.target.wants/hangul-daemon.service
         rm -f /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-restore.service
         rm -f /mnt/rootfs/etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service
@@ -561,11 +571,13 @@ if [ -n "$INACTIVE" ]; then
     if [ -d /mnt/inactive/etc ]; then
         rm -rf /mnt/inactive/opt/rekoit
         rm -f /mnt/inactive/usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf
+        rm -f /mnt/inactive/etc/systemd/system/rekoit-daemon.service
         rm -f /mnt/inactive/etc/systemd/system/hangul-daemon.service
         rm -f /mnt/inactive/etc/systemd/system/rekoit-restore.service
         rm -f /mnt/inactive/etc/systemd/system/rekoit-factory-guard.service
         rm -f /mnt/inactive/etc/systemd/system/rekoit-bt-agent.service
         rm -f /mnt/inactive/etc/systemd/system/rekoit-bt-wake-reconnect.service
+        rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
         rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/hangul-daemon.service
         rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/rekoit-restore.service
         rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service
@@ -657,7 +669,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           await downloadFont(projectDir, send);
           send("progress", { percent: 8, step: 0 });
 
-          await buildHangulDaemon(projectDir, send);
+          await buildRekoitDaemon(projectDir, send);
           send("progress", { percent: 15, step: 0 });
         }
         if (effectiveState.installBt) {
@@ -714,7 +726,7 @@ export async function GET(request: NextRequest): Promise<Response> {
               await runSsh(
                 ip,
                 password,
-                "systemctl stop hangul-daemon.service 2>/dev/null || true; systemctl stop rekoit-restore.service 2>/dev/null || true;",
+                "systemctl stop rekoit-daemon.service 2>/dev/null || true; systemctl stop hangul-daemon.service 2>/dev/null || true; systemctl stop rekoit-restore.service 2>/dev/null || true;",
               );
               send("log", { line: "OK: Existing services stopped and login restore cleanup complete" });
             } catch {
@@ -850,7 +862,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         const helperPaths = [
           "/home/root/rekoit/restore.sh",
           "/home/root/rekoit/post-update.sh",
-          ...(effectiveState.installHangul ? ["/home/root/rekoit/restore-hangul.sh"] : []),
+          ...(effectiveState.installHangul ? ["/home/root/rekoit/restore-daemon.sh"] : []),
           ...(effectiveState.installBt ? ["/home/root/rekoit/restore-bt.sh"] : []),
         ];
         await runSsh(ip, password, `chmod +x ${helperPaths.join(" ")}`);

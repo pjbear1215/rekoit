@@ -257,10 +257,11 @@ export async function GET(request: NextRequest): Promise<Response> {
         // Also mount the root partition as rw for the entire process
         await runSsh(ip, password, `
           mount -o remount,rw / 2>/dev/null || true
-          for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
+          for svc in rekoit-factory-guard rekoit-daemon hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
             systemctl stop "$svc" 2>/dev/null || true
             systemctl disable "$svc" 2>/dev/null || true
           done
+          killall rekoit-daemon 2>/dev/null || true
           killall hangul-daemon 2>/dev/null || true
         `);
         send("log", { line: "OK: Related services stopped and rw permissions secured" });
@@ -454,8 +455,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         await runSsh(ip, password, `
           # rm overlay /etc and /opt files (for immediate reflection in the current session)
           rm -rf /opt/rekoit 2>/dev/null || true
-          rm -f /etc/systemd/system/hangul-daemon.service /etc/systemd/system/rekoit-restore.service /etc/systemd/system/rekoit-factory-guard.service /etc/systemd/system/rekoit-bt-agent.service /etc/systemd/system/rekoit-bt-wake-reconnect.service
-          rm -f /etc/systemd/system/multi-user.target.wants/hangul-daemon.service /etc/systemd/system/multi-user.target.wants/rekoit-restore.service /etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service /etc/systemd/system/multi-user.target.wants/rekoit-bt-agent.service /etc/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service
+          rm -f /etc/systemd/system/rekoit-daemon.service /etc/systemd/system/hangul-daemon.service /etc/systemd/system/rekoit-restore.service /etc/systemd/system/rekoit-factory-guard.service /etc/systemd/system/rekoit-bt-agent.service /etc/systemd/system/rekoit-bt-wake-reconnect.service
+          rm -f /etc/systemd/system/multi-user.target.wants/rekoit-daemon.service /etc/systemd/system/multi-user.target.wants/hangul-daemon.service /etc/systemd/system/multi-user.target.wants/rekoit-restore.service /etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service /etc/systemd/system/multi-user.target.wants/rekoit-bt-agent.service /etc/systemd/system/multi-user.target.wants/rekoit-bt-wake-reconnect.service
           rm -rf /etc/systemd/system/bluetooth.service.d 2>/dev/null
           rm -f /etc/swupdate/conf.d/99-rekoit-postupdate /etc/modules-load.d/btnxpuart.conf
           ${buildFontRemovalCommands({ deleteFont, ignoreMissing: true, refreshCache: true })}
@@ -533,11 +534,13 @@ STATE_EOF
               rm -rf /mnt/inactive/opt/rekoit
               ${buildFontRemovalCommands({ deleteFont, prefix: "/mnt/inactive" })}
               rm -f /mnt/inactive/etc/swupdate/conf.d/99-rekoit-postupdate
+              rm -f /mnt/inactive/etc/systemd/system/rekoit-daemon.service
               rm -f /mnt/inactive/etc/systemd/system/hangul-daemon.service
               rm -f /mnt/inactive/etc/systemd/system/rekoit-restore.service
               rm -f /mnt/inactive/etc/systemd/system/rekoit-factory-guard.service
               rm -f /mnt/inactive/etc/systemd/system/rekoit-bt-agent.service
               rm -f /mnt/inactive/etc/systemd/system/rekoit-bt-wake-reconnect.service
+              rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
               rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/hangul-daemon.service
               rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/rekoit-restore.service
               rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/rekoit-factory-guard.service
@@ -574,7 +577,7 @@ STATE_EOF
 
         // Re-verify mask before daemon-reload to prevent overlay cache services from loading
         await runSsh(ip, password, `
-          for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
+          for svc in rekoit-factory-guard rekoit-daemon hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
             systemctl mask "$svc" 2>/dev/null || true
           done
           systemctl daemon-reload && sync
@@ -592,7 +595,7 @@ STATE_EOF
           // Since USB network temporarily disconnects during xochitl restart,
           // execute in the background after 2 seconds to allow the SSH session to terminate normally first.
           await runSsh(ip, password, `
-            for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
+            for svc in rekoit-factory-guard rekoit-daemon hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
               systemctl mask "$svc" 2>/dev/null || true
             done
             sync && (sleep 2 && systemctl restart xochitl) &
@@ -621,7 +624,7 @@ STATE_EOF
               # Final live cleanup: Forcefully clean the current runtime view of the active rootfs once more
               rm -rf /opt/rekoit 2>/dev/null || true
               # Final verification of service unmask (was masked at the time of xochitl restart)
-              for svc in rekoit-factory-guard hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
+              for svc in rekoit-factory-guard rekoit-daemon hangul-daemon rekoit-restore rekoit-bt-agent rekoit-bt-wake-reconnect; do
                 systemctl stop "$svc" 2>/dev/null || true
                 systemctl disable "$svc" 2>/dev/null || true
                 systemctl unmask "$svc" 2>/dev/null || true
@@ -655,6 +658,7 @@ STATE_EOF
 
               if [ -n "$DIRECT" ]; then
                 # Check /etc files (ext4 directly)
+                [ -f "$DIRECT/etc/systemd/system/rekoit-daemon.service" ] && echo "REMAIN:rekoit-daemon.service file" || true
                 [ -f "$DIRECT/etc/systemd/system/hangul-daemon.service" ] && echo "REMAIN:hangul-daemon.service file" || true
                 [ -f "$DIRECT/etc/systemd/system/rekoit-restore.service" ] && echo "REMAIN:rekoit-restore.service file" || true
                 [ -f "$DIRECT/etc/systemd/system/rekoit-factory-guard.service" ] && echo "REMAIN:rekoit-factory-guard.service file" || true
@@ -683,7 +687,8 @@ STATE_EOF
                 [ "\${INSTALL_BT:-1}" = "0" ] || echo "REMAIN:install-state bt flag"
               fi
               grep -q 'rekoit' /home/root/.bashrc 2>/dev/null && echo "REMAIN:.bashrc auto-recovery script" || true
-              [ -f /dev/shm/hangul-libepaper.so ] && echo "REMAIN:libepaper tmpfs file" || true
+              [ -f /dev/shm/rekoit-libepaper.so ] && echo "REMAIN:rekoit libepaper tmpfs file" || true
+              [ -f /dev/shm/hangul-libepaper.so ] && echo "REMAIN:hangul libepaper tmpfs file" || true
               mount | grep -q ' /usr/lib/plugins/platforms/libepaper.so ' && echo "REMAIN:libepaper runtime mount" || true
 
               # Bluetooth verification (excluding bluetoothctl — risk of hanging when service is stopped)

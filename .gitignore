@@ -25,7 +25,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Built binaries (compiled or downloaded during setup)
-resources/hangul-daemon/hangul-daemon
+resources/rekoit-daemon/rekoit-daemon
 resources/rekoit-bt-helper/rekoit-bt-helper
 resources/fonts/
 dist/

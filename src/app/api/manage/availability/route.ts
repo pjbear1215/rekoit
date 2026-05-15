@@ -63,12 +63,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if [ -f /home/root/rekoit/install-state.conf ]; then
         . /home/root/rekoit/install-state.conf
       fi
-      HANGUL_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
-      if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$HANGUL_SERVICE_LINK" != "/dev/null" ]; then
-        echo HANGUL_INSTALLED=1
-      else
-        echo HANGUL_INSTALLED=0
+      DAEMON_INSTALLED=0
+      if [ -e /etc/systemd/system/rekoit-daemon.service ]; then
+        DAEMON_SERVICE_LINK=$(readlink /etc/systemd/system/rekoit-daemon.service 2>/dev/null || true)
+        if [ "$DAEMON_SERVICE_LINK" != "/dev/null" ]; then DAEMON_INSTALLED=1; fi
       fi
+      if [ "$DAEMON_INSTALLED" = "0" ] && [ -e /etc/systemd/system/hangul-daemon.service ]; then
+        DAEMON_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
+        if [ "$DAEMON_SERVICE_LINK" != "/dev/null" ]; then DAEMON_INSTALLED=1; fi
+      fi
+      echo HANGUL_INSTALLED=$DAEMON_INSTALLED
       if [ -f /etc/modules-load.d/btnxpuart.conf ]; then
         echo BT_INSTALLED=1
       else
@@ -79,8 +83,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       else
         echo FONT_INSTALLED=0
       fi
-      if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$HANGUL_SERVICE_LINK" != "/dev/null" ] || \
-         [ -f /etc/modules-load.d/btnxpuart.conf ]; then
+      if [ "$DAEMON_INSTALLED" = "1" ] || [ -f /etc/modules-load.d/btnxpuart.conf ]; then
         echo INSTALLED=1
       else
         echo INSTALLED=0

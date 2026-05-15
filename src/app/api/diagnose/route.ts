@@ -80,6 +80,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    results.rekoit_daemon = await runSsh(
+      ip,
+      password,
+      "echo ENABLED=$(systemctl is-enabled rekoit-daemon 2>/dev/null || echo not-found) && echo ACTIVE=$(systemctl is-active rekoit-daemon 2>/dev/null || echo inactive)",
+    );
+  } catch {
+    results.rekoit_daemon = "SSH_ERROR";
+  }
+
+  try {
     results.hangul_daemon = await runSsh(
       ip,
       password,
@@ -87,6 +97,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   } catch {
     results.hangul_daemon = "SSH_ERROR";
+  }
+
+  try {
+    results.rekoit_daemon_logs = await runSsh(
+      ip,
+      password,
+      "journalctl -u rekoit-daemon --no-pager --since '30 minutes ago' -n 300 2>/dev/null || echo 'NO_LOGS'",
+    );
+  } catch {
+    results.rekoit_daemon_logs = "SSH_ERROR";
   }
 
   try {

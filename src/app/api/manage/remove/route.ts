@@ -68,12 +68,17 @@ async function detect(ip: string, password: string): Promise<{ hangul: boolean; 
       echo "STATE_HANGUL="
       echo "STATE_BT=0"
     fi
-    HANGUL_SERVICE_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
-    if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$HANGUL_SERVICE_LINK" != "/dev/null" ]; then
-      echo "HANGUL=yes"
+    DAEMON_INSTALLED=0
+    DAEMON_LINK=$(readlink /etc/systemd/system/rekoit-daemon.service 2>/dev/null || true)
+    if [ -e /etc/systemd/system/rekoit-daemon.service ] && [ "$DAEMON_LINK" != "/dev/null" ]; then
+      DAEMON_INSTALLED=1
     else
-      echo "HANGUL=no"
+      DAEMON_LINK=$(readlink /etc/systemd/system/hangul-daemon.service 2>/dev/null || true)
+      if [ -e /etc/systemd/system/hangul-daemon.service ] && [ "$DAEMON_LINK" != "/dev/null" ]; then
+        DAEMON_INSTALLED=1
+      fi
     fi
+    [ "$DAEMON_INSTALLED" = "1" ] && echo "HANGUL=yes" || echo "HANGUL=no"
     if [ -f /etc/modules-load.d/btnxpuart.conf ]; then
       echo "BT=yes"
     else
@@ -222,6 +227,8 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
   await runSsh(ip, password, `
     systemctl stop xochitl 2>/dev/null || true
 ...
+    systemctl stop rekoit-daemon 2>/dev/null || true
+    systemctl disable rekoit-daemon 2>/dev/null || true
     systemctl stop hangul-daemon 2>/dev/null || true
     systemctl disable hangul-daemon 2>/dev/null || true
     ${otherStillInstalled ? "" : `
@@ -240,7 +247,8 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
     mount -o remount,rw / || { echo "FAIL:remount"; exit 0; }
 
     LIBEPAPER="/usr/lib/plugins/platforms/libepaper.so"
-    LIBEPAPER_TMPFS="/dev/shm/hangul-libepaper.so"
+    LIBEPAPER_TMPFS="/dev/shm/rekoit-libepaper.so"
+    LIBEPAPER_TMPFS_OLD="/dev/shm/hangul-libepaper.so"
     
     # Direct bind mount unmount (loop)
     while grep -q " $LIBEPAPER " /proc/mounts 2>/dev/null; do
@@ -248,16 +256,19 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
       sleep 0.5
     done
     # Unmount all mount points based on tmpfs source (loop)
-    while mount | grep -q "$LIBEPAPER_TMPFS"; do
-      TARGET=$(mount | awk -v src="$LIBEPAPER_TMPFS" '$1==src {print $3; exit}')
-      [ -n "$TARGET" ] || break
-      umount -l "$TARGET" 2>/dev/null || umount "$TARGET" 2>/dev/null || break
-      sleep 0.5
+    for tmpfs in "$LIBEPAPER_TMPFS" "$LIBEPAPER_TMPFS_OLD"; do
+      while mount | grep -q "$tmpfs"; do
+        TARGET=$(mount | awk -v src="$tmpfs" '$1==src {print $3; exit}')
+        [ -n "$TARGET" ] || break
+        umount -l "$TARGET" 2>/dev/null || umount "$TARGET" 2>/dev/null || break
+        sleep 0.5
+      done
+      rm -f "$tmpfs"
     done
-    // Restore libepaper original (unmounting is enough)
-    rm -f "$LIBEPAPER_TMPFS"
 
     # Remove service files
+    rm -f /etc/systemd/system/rekoit-daemon.service
+    rm -f /etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
     rm -f /etc/systemd/system/hangul-daemon.service
     rm -f /etc/systemd/system/multi-user.target.wants/hangul-daemon.service
     ${otherStillInstalled ? "" : `
@@ -304,6 +315,12 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
   logs.push(`OK: Input Engine runtime and libepaper cleaned up (fonts preserved)${otherStillInstalled ? "" : ", REKOIT guard removed"}`);
 
   await runSsh(ip, password, `
+    rm -f /home/root/rekoit/install-daemon.sh
+    rm -f /home/root/rekoit/restore-daemon.sh
+    rm -f /home/root/rekoit/post-update-daemon.sh
+    rm -f /home/root/rekoit/rekoit-daemon
+    rm -f /home/root/rekoit/rekoit-daemon.service
+    # Legacy file removal
     rm -f /home/root/rekoit/install-hangul.sh
     rm -f /home/root/rekoit/restore-hangul.sh
     rm -f /home/root/rekoit/post-update-hangul.sh
@@ -335,6 +352,8 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
         `}
         # Also preserve fonts on the inactive partition.
         ${otherStillInstalled ? "" : `rm -f /mnt/inactive/etc/swupdate/conf.d/99-rekoit-postupdate`}
+        rm -f /mnt/inactive/etc/systemd/system/rekoit-daemon.service
+        rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/rekoit-daemon.service
         rm -f /mnt/inactive/etc/systemd/system/hangul-daemon.service
         rm -f /mnt/inactive/etc/systemd/system/multi-user.target.wants/hangul-daemon.service
         ${otherStillInstalled ? "" : `
@@ -379,17 +398,15 @@ async function removeHangul(ip: string, password: string, otherStillInstalled: b
     [ -f /usr/share/fonts/ttf/noto/NotoSansCJKkr-Regular.otf ] && FAIL="$FAIL font_exists"
     ${otherStillInstalled ? "" : `[ -d /opt/rekoit ] && FAIL="$FAIL opt_exists"`}
     ${otherStillInstalled ? `
-    [ -f /home/root/rekoit/install-hangul.sh ] && FAIL="$FAIL install_hangul_exists"
-    [ -f /home/root/rekoit/restore-hangul.sh ] && FAIL="$FAIL restore_hangul_exists"
-    [ -f /home/root/rekoit/post-update-hangul.sh ] && FAIL="$FAIL post_update_hangul_exists"
+    [ -f /home/root/rekoit/install-daemon.sh ] && FAIL="$FAIL install_daemon_exists"
+    [ -f /home/root/rekoit/rekoit-daemon ] && FAIL="$FAIL rekoit_daemon_exists"
+    [ -f /home/root/rekoit/rekoit-daemon.service ] && FAIL="$FAIL rekoit_service_exists"
     [ -f /home/root/rekoit/hangul-daemon ] && FAIL="$FAIL hangul_daemon_exists"
     [ -f /home/root/rekoit/hangul-daemon.service ] && FAIL="$FAIL hangul_service_exists"
     [ -f /home/root/rekoit/fonts/NotoSansCJKkr-Regular.otf ] && FAIL="$FAIL hangul_font_backup_exists"
-    [ -f /home/root/rekoit/backup/libepaper.so.original ] && FAIL="$FAIL libepaper_backup_exists"
-    [ -f /home/root/rekoit/backup/libepaper.so.latest ] && FAIL="$FAIL libepaper_latest_exists"
-    [ -f /home/root/rekoit/backup/font_existed ] && FAIL="$FAIL font_marker_exists"
     ` : `[ -d /home/root/rekoit ] && FAIL="$FAIL rekoit_home_exists"`}
-    [ -f /dev/shm/hangul-libepaper.so ] && FAIL="$FAIL libepaper_tmpfs_exists"
+    [ -f /dev/shm/rekoit-libepaper.so ] && FAIL="$FAIL rekoit_libepaper_tmpfs_exists"
+    [ -f /dev/shm/hangul-libepaper.so ] && FAIL="$FAIL hangul_libepaper_tmpfs_exists"
     mount | grep -q ' /usr/lib/plugins/platforms/libepaper.so ' && FAIL="$FAIL libepaper_bind_mount_exists"
     ${otherStillInstalled ? "" : `[ -f /etc/swupdate/conf.d/99-rekoit-postupdate ] && FAIL="$FAIL swupdate_hook_exists"`}
     if [ -z "$FAIL" ]; then echo "VERIFY_OK"; else echo "VERIFY_FAIL:$FAIL"; fi
