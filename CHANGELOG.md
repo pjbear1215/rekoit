@@ -2,14 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.9.6] - 2026-05-13
+## [0.9.6] - 2026-05-15
 
-### ⌨️ Optimized Input Stack & Fixes
-- **Separate Cache Slots for Dual-Modes**: Implemented isolated layout caches for Korean and English modes. This prevents layout interference where previously typed Hangul characters would incorrectly appear in English mode.
-- **English Mode Symbol Slot Optimization**: Transitioned English mode patching from alpha keys to symbol keys (`;`, `'`, `,`, `.`, `/`). This allows all English alphabet characters to pass through instantly without any layout patch overhead, resulting in faster and more reliable typing.
-- **Native Text Selection Support**: Fixed the issue where `Shift + Arrow` text selection would break or stutter. The daemon now forwards physical Shift events directly to the system.
-- **Modifier Neutralization**: Introduced a sophisticated modifier neutralization system. The daemon now automatically releases physical modifiers (Shift, Ctrl, Alt) right before injecting synthetic keystrokes and restores them immediately after, ensuring the OS processes composed characters accurately without interference from held physical keys.
-- **Improved Mode Syncing**: Added `isKorean` flag tracking to the asynchronous output pipeline, ensuring results are always applied to the correct language cache regardless of rapid mode switching.
+### 🚀 Introducing rekoit-daemon & Performance Breakthrough
+- **Renamed to rekoit-daemon**: Fully rebranded the internal input engine from `hangul-daemon` to `rekoit-daemon`. This structural change prepares the toolkit for future multi-language extensibility while unifying the project's identity.
+- **Static High-Frequency Cache**: Implemented a linguistic-driven static cache that permanently maps the top 20 most frequent Korean characters (이, 는, 다, 의, 가, 을, 에, 하, 거, 기, 고, 어, 한, 도, 를, 지, 있, 나, 만, 데) to dedicated hardware slots. This results in **instant, native-speed typing** for the vast majority of Korean text, with zero layout patching overhead.
+- **Simplified Cache Management**: Replaced the complex LRU (Least Recently Used) algorithm with a streamlined Round-Robin dynamic pool for long-tail characters. This significantly reduces CPU overhead and improves predictability.
+
+### ⌨️ Bulletproof Shortcuts & Stability
+- **Full Shortcut Key Protection**: Permanently excluded all common shortcut keys (`A, B, C, F, I, N, O, V, W, X, Y, Z`) and their shifted variants from the patching pool. Shortcuts like `Ctrl+C`, `Ctrl+V`, and `Ctrl+A` now work natively 100% of the time without requiring dynamic layout restoration.
+- **Stuck Key Prevention**: Implemented a physical key tracking system that guarantees the OS always receives 'KeyUp' events for bypassed keys. This fixes the major bug where keys like 'C' or 'V' would stay "stuck" if the Ctrl key was released first.
+- **Native Selection Anchor Fix**: Resolved the issue where adding `Ctrl` to a `Shift+Arrow` selection would drop the selection anchor. By skipping redundant synthetic keystrokes during character finalization, the OS text engine remains completely stable.
+- **Zero-Jitter Commit Logic**: Optimized the character commit process to skip redundant `Backspace + Character` sequences when the screen preview already matches the final character, ensuring zero UI jitter during rapid typing.
+
+### 🛠️ Maintenance & Compatibility
+- **Comprehensive Cleanup**: Updated all installation, restoration, and management scripts to ensure a clean transition from older `hangul-daemon` versions. Legacy service files and binaries are automatically detected and removed during updates.
 
 ## [0.9.5] - 2026-04-28
 
@@ -55,7 +62,7 @@ All notable changes to this project are documented in this file.
 - **Bluetooth Recovery Fix:** Implemented automatic re-recreation of the Bluetooth kernel module configuration (`btnxpuart.conf`) during restore, ensuring correct UI status detection after reboot.
 - **Optimized Recovery Cycle:** Streamlined the root partition remounting logic to minimize write operations and system impact during the boot process.
 - **A/B Partition Synchronization:** Improved the firmware update safety by injecting recovery services directly into the inactive rootfs during installation.
-- **Path Consistency:** Unified Hangul font paths across all system components (installation, restoration, and verification).
+- **Path Consistency**: Unified Hangul font paths across all system components (installation, restoration, and verification).
 
 ## [0.9.0] - 2026-04-21
 
