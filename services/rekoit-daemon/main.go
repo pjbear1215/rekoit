@@ -784,7 +784,7 @@ var jongseongMap = makeKeyIndexTable(
 )
 
 var jongseongShiftMap = makeKeyIndexTable(
-	keyIndexPair{KEY_T, 20},
+	keyIndexPair{KEY_R, 2}, keyIndexPair{KEY_T, 20},
 )
 
 var jongseongToChoseong = [28]int8{
